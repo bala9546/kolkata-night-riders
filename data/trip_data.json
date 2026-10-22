@@ -8,29 +8,34 @@
       "color": "#046A38"
     },
     {
-      "id": "mem_2",
-      "name": "Member 2",
-      "color": "#E34222"
+      "id": "mem_37bb3ddf",
+      "name": "Naisha",
+      "color": "#10B981",
+      "upi": ""
     },
     {
-      "id": "mem_3",
-      "name": "Member 3",
-      "color": "#046A38"
+      "id": "mem_099bc17a",
+      "name": "sai praneeth",
+      "color": "#F59E0B",
+      "upi": ""
     },
     {
-      "id": "mem_4",
-      "name": "Member 4",
-      "color": "#E34222"
+      "id": "mem_5638c845",
+      "name": "sai nath",
+      "color": "#EC4899",
+      "upi": ""
     },
     {
-      "id": "mem_5",
-      "name": "Member 5",
-      "color": "#046A38"
+      "id": "mem_f00b33ae",
+      "name": "Hema",
+      "color": "#8B5CF6",
+      "upi": ""
     },
     {
-      "id": "mem_6",
-      "name": "Member 6",
-      "color": "#E34222"
+      "id": "mem_2fc6cf1e",
+      "name": "sannihith",
+      "color": "#06B6D4",
+      "upi": ""
     }
   ],
   "expenses": []

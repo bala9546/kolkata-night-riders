@@ -164,7 +164,7 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(body)
@@ -172,7 +172,7 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -292,6 +292,51 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                 data = load_data()
                 analytics = calculate_analytics(data)
                 self._send_json(200, {"success": True, "data": data, "analytics": analytics})
+            return
+
+        self._send_json(404, {"error": "Endpoint not found"})
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
+        try:
+            body = json.loads(raw_body)
+        except Exception:
+            body = {}
+
+        if path.startswith("/api/members/"):
+            mem_id = path.replace("/api/members/", "").strip()
+            name = body.get("name", "").strip()
+            upi = body.get("upi", "").strip()
+
+            if not name:
+                self._send_json(400, {"error": "Member name cannot be empty"})
+                return
+
+            with lock:
+                data = load_data()
+                found = False
+                for m in data.get("members", []):
+                    if m["id"] == mem_id:
+                        m["name"] = name
+                        m["upi"] = upi
+                        found = True
+                        break
+
+                if not found:
+                    self._send_json(404, {"error": "Member not found"})
+                    return
+
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "members": data["members"],
+                    "analytics": analytics
+                })
             return
 
         self._send_json(404, {"error": "Endpoint not found"})

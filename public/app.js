@@ -18,6 +18,7 @@ let appState = {
 let currentCategory = "ALL";
 let searchQuery = "";
 let isPolling = true;
+let editingMemberId = null;
 
 const CATEGORY_MAP = {
   Food: { icon: "🍲", label: "Food & Drinks" },
@@ -406,13 +407,36 @@ function updateLiveSplitHint() {
   }
 }
 
-// ======================== SQUAD MANAGEMENT ========================
+// ======================== SQUAD MANAGEMENT & EDITING ========================
 function renderSquadManageList() {
   const container = document.getElementById("squad-list-container");
   const { members, expenses } = appState;
 
   container.innerHTML = members.map(m => {
+    const isEditing = editingMemberId === m.id;
     const isActive = expenses.some(e => e.paidBy === m.id || (e.splitBetween && e.splitBetween.includes(m.id)));
+
+    if (isEditing) {
+      return `
+        <div class="squad-row-card editing-card">
+          <div class="squad-edit-grid">
+            <div class="input-field-group">
+              <label class="field-label" style="font-size:10px;">Name</label>
+              <input type="text" id="edit-mem-name-${m.id}" class="custom-input" value="${escapeHtml(m.name)}" required>
+            </div>
+            <div class="input-field-group">
+              <label class="field-label" style="font-size:10px;">UPI ID (e.g. name@upi)</label>
+              <input type="text" id="edit-mem-upi-${m.id}" class="custom-input" value="${escapeHtml(m.upi || '')}" placeholder="Optional UPI">
+            </div>
+          </div>
+          <div class="squad-edit-actions">
+            <button class="btn-action-ghost btn-sm" onclick="cancelEditMember()" title="Cancel">Cancel</button>
+            <button class="btn-action-submit btn-sm" onclick="saveEditMember('${m.id}')" title="Save changes">Save</button>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="squad-row-card">
         <div class="squad-row-left">
@@ -420,21 +444,69 @@ function renderSquadManageList() {
             ${escapeHtml(m.name.charAt(0).toUpperCase())}
           </div>
           <div>
-            <div style="font-weight:700; font-size:14px;">${escapeHtml(m.name)}</div>
-            ${m.upi ? `<div style="font-size:11px; color:var(--text-muted);">${escapeHtml(m.upi)}</div>` : ''}
+            <div style="font-weight:700; font-size:14px; color:var(--text-primary);">${escapeHtml(m.name)}</div>
+            ${m.upi ? `<div style="font-size:11px; color:var(--accent-emerald); font-weight:600;">UPI: ${escapeHtml(m.upi)}</div>` : `<div style="font-size:11px; color:var(--text-muted);">No UPI added</div>`}
           </div>
         </div>
 
-        ${isActive ? `
-          <span style="font-size:11px; color:var(--text-muted); font-weight:600;">Active in bills</span>
-        ` : `
-          <button class="btn-trash-icon" onclick="deleteMember('${m.id}')" title="Remove member">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <div class="squad-row-actions">
+          <button class="btn-icon-action" onclick="startEditMember('${m.id}')" title="Edit name & UPI">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-        `}
+
+          ${isActive ? `
+            <span class="active-bill-tag" title="Participated in trip expenses">Active</span>
+          ` : `
+            <button class="btn-trash-icon" onclick="deleteMember('${m.id}')" title="Remove member">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          `}
+        </div>
       </div>
     `;
   }).join("");
+}
+
+function startEditMember(id) {
+  editingMemberId = id;
+  renderSquadManageList();
+  document.getElementById(`edit-mem-name-${id}`)?.focus();
+}
+
+function cancelEditMember() {
+  editingMemberId = null;
+  renderSquadManageList();
+}
+
+async function saveEditMember(id) {
+  const nameInput = document.getElementById(`edit-mem-name-${id}`);
+  const upiInput = document.getElementById(`edit-mem-upi-${id}`);
+  const name = nameInput.value.trim();
+  const upi = upiInput.value.trim();
+
+  if (!name) {
+    showToast("Name cannot be empty", true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/members/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, upi })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to update member");
+    }
+
+    editingMemberId = null;
+    showToast(`Updated ${name}! ✨`);
+    fetchTripData();
+  } catch (err) {
+    showToast(err.message, true);
+  }
 }
 
 // ======================== QUICK PRESETS ========================
