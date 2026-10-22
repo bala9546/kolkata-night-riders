@@ -16,6 +16,19 @@ PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 lock = threading.Lock()
 
 # ----------------- MONGODB CONNECTION (HYBRID CLOUD STORAGE) -----------------
+# Auto-load .env file if present
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+if os.path.exists(ENV_PATH):
+    try:
+        with open(ENV_PATH, "r", encoding="utf-8") as _ef:
+            for _line in _ef:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+    except Exception as _e:
+        print(f"Note: Error reading .env file: {_e}", file=sys.stderr)
+
 MONGODB_URI = os.environ.get("MONGODB_URI") or os.environ.get("MONGO_URI")
 mongo_client = None
 mongo_collection = None
