@@ -622,31 +622,47 @@ async function saveEditMember(id, event) {
   }
 
   try {
-    const res = await fetch(`/api/members/${id}`, {
+    let res = await fetch(`/api/members/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, upi })
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to update member");
+      // Fallback to POST in case network/proxy restricts PUT
+      res = await fetch(`/api/members/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, upi })
+      });
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to update member");
     }
 
     editingMemberId = null;
     showToast(`Updated to ${name}! ✨`);
 
-    // Direct local update so modal stays smooth
-    const m = appState.members.find(x => x.id === id);
-    if (m) {
-      m.name = name;
-      m.upi = upi;
+    // Use latest members & analytics returned by server
+    if (data.members) {
+      appState.members = data.members;
+    } else {
+      const m = appState.members.find(x => x.id === id);
+      if (m) {
+        m.name = name;
+        m.upi = upi;
+      }
     }
+    if (data.analytics) {
+      appState.analytics = data.analytics;
+    }
+
     renderSquadManageList();
     renderExpenseModalFields();
     renderLeaderboard();
     renderSettlements();
-    fetchTripData(true);
   } catch (err) {
     showToast(err.message, true);
   }
@@ -813,13 +829,20 @@ async function deleteMember(id, event) {
     }
     showToast("Member removed");
 
-    // Immediate local update so squad modal stays open and responsive
-    appState.members = appState.members.filter(m => m.id !== id);
+    // Use latest members & analytics returned by server
+    if (data.members) {
+      appState.members = data.members;
+    } else {
+      appState.members = appState.members.filter(m => m.id !== id);
+    }
+    if (data.analytics) {
+      appState.analytics = data.analytics;
+    }
+
     renderSquadManageList();
     renderExpenseModalFields();
     renderLeaderboard();
     renderSettlements();
-    fetchTripData(true);
   } catch (err) {
     showToast("Error removing member: " + err.message, true);
   }
@@ -856,7 +879,7 @@ function setupWhatsApp() {
       msg += `• *${m.name}*: Paid ${currency}${m.paid} | Fair Share ${currency}${m.owed} ➔ *${net}*\n`;
     });
 
-    msg += `\n✨ _Calculated fairly via Kolkata Night Riders Splitter_`;
+    msg += `\n⚡ _Architected & Built by Lead Architect Bala_\n✨ _Kolkata Night Riders Smart Trip Splitter_`;
 
     navigator.clipboard.writeText(msg).then(() => {
       showToast("Summary copied! Paste in WhatsApp 📋");
@@ -904,6 +927,18 @@ function setupModals() {
 
   document.getElementById("btn-close-members-modal").addEventListener("click", () => {
     membersModal.classList.remove("open");
+  });
+
+  const closeFooterBtn = document.getElementById("btn-close-members-footer");
+  if (closeFooterBtn) {
+    closeFooterBtn.addEventListener("click", () => {
+      membersModal.classList.remove("open");
+    });
+  }
+
+  // Corner architect badge interactive toast
+  document.getElementById("corner-architect-pill")?.addEventListener("click", () => {
+    showToast("⚡ Kolkata Night Riders • Designed & Engineered by Lead Architect Bala");
   });
 
   const upiModal = document.getElementById("modal-upi-qr");
