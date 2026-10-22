@@ -41,9 +41,12 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearch();
   setupWhatsApp();
 
-  // Real-time synchronization polling (every 4 seconds)
+  // Real-time synchronization polling (every 4 seconds, paused when editing or modal is open)
   setInterval(() => {
-    if (isPolling) fetchTripData(true);
+    const isAnyModalOpen = document.querySelector(".modal-overlay.open") !== null;
+    if (isPolling && !isAnyModalOpen && editingMemberId === null) {
+      fetchTripData(true);
+    }
   }, 4000);
 });
 
@@ -523,6 +526,7 @@ function updateLiveSplitHint() {
 // ======================== SQUAD MANAGEMENT & EDITING ========================
 function renderSquadManageList() {
   const container = document.getElementById("squad-list-container");
+  if (!container) return;
   const { members, expenses } = appState;
 
   container.innerHTML = members.map(m => {
@@ -531,27 +535,27 @@ function renderSquadManageList() {
 
     if (isEditing) {
       return `
-        <div class="squad-row-card editing-card">
+        <div class="squad-row-card editing-card" onclick="event.stopPropagation()">
           <div class="squad-edit-grid">
             <div class="input-field-group">
               <label class="field-label" style="font-size:10px;">Name</label>
-              <input type="text" id="edit-mem-name-${m.id}" class="custom-input" value="${escapeHtml(m.name)}" required>
+              <input type="text" id="edit-mem-name-${m.id}" class="custom-input" value="${escapeHtml(m.name)}" placeholder="Member name" required onclick="event.stopPropagation()">
             </div>
             <div class="input-field-group">
               <label class="field-label" style="font-size:10px;">UPI ID (e.g. name@upi)</label>
-              <input type="text" id="edit-mem-upi-${m.id}" class="custom-input" value="${escapeHtml(m.upi || '')}" placeholder="Optional UPI">
+              <input type="text" id="edit-mem-upi-${m.id}" class="custom-input" value="${escapeHtml(m.upi || '')}" placeholder="Optional UPI ID" onclick="event.stopPropagation()">
             </div>
           </div>
           <div class="squad-edit-actions">
-            <button class="btn-action-ghost btn-sm" onclick="cancelEditMember()" title="Cancel">Cancel</button>
-            <button class="btn-action-submit btn-sm" onclick="saveEditMember('${m.id}')" title="Save changes">Save</button>
+            <button type="button" class="btn-action-ghost btn-sm" onclick="cancelEditMember(event)" title="Cancel">Cancel</button>
+            <button type="button" class="btn-action-submit btn-sm" onclick="saveEditMember('${m.id}', event)" title="Save changes">Save</button>
           </div>
         </div>
       `;
     }
 
     return `
-      <div class="squad-row-card">
+      <div class="squad-row-card" onclick="event.stopPropagation()">
         <div class="squad-row-left">
           <div class="avatar-badge" style="width:34px; height:34px; font-size:13px; background-color: ${m.color || '#6366F1'}">
             ${escapeHtml(m.name.charAt(0).toUpperCase())}
@@ -563,14 +567,15 @@ function renderSquadManageList() {
         </div>
 
         <div class="squad-row-actions">
-          <button class="btn-icon-action" onclick="startEditMember('${m.id}')" title="Edit name & UPI">
+          <button type="button" class="btn-icon-action" onclick="startEditMember('${m.id}', event)" title="Edit name & UPI">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            <span style="font-size:12px; font-weight:700; margin-left:2px;">Edit</span>
           </button>
 
           ${isActive ? `
             <span class="active-bill-tag" title="Participated in trip expenses">Active</span>
           ` : `
-            <button class="btn-trash-icon" onclick="deleteMember('${m.id}')" title="Remove member">
+            <button type="button" class="btn-trash-icon" onclick="deleteMember('${m.id}', event)" title="Remove member">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           `}
@@ -580,22 +585,36 @@ function renderSquadManageList() {
   }).join("");
 }
 
-function startEditMember(id) {
+function startEditMember(id, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
   editingMemberId = id;
   renderSquadManageList();
-  document.getElementById(`edit-mem-name-${id}`)?.focus();
+  setTimeout(() => {
+    document.getElementById(`edit-mem-name-${id}`)?.focus();
+  }, 50);
 }
 
-function cancelEditMember() {
+function cancelEditMember(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
   editingMemberId = null;
   renderSquadManageList();
 }
 
-async function saveEditMember(id) {
+async function saveEditMember(id, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
   const nameInput = document.getElementById(`edit-mem-name-${id}`);
   const upiInput = document.getElementById(`edit-mem-upi-${id}`);
-  const name = nameInput.value.trim();
-  const upi = upiInput.value.trim();
+  const name = nameInput ? nameInput.value.trim() : "";
+  const upi = upiInput ? upiInput.value.trim() : "";
 
   if (!name) {
     showToast("Name cannot be empty", true);
@@ -615,8 +634,19 @@ async function saveEditMember(id) {
     }
 
     editingMemberId = null;
-    showToast(`Updated ${name}! ✨`);
-    fetchTripData();
+    showToast(`Updated to ${name}! ✨`);
+
+    // Direct local update so modal stays smooth
+    const m = appState.members.find(x => x.id === id);
+    if (m) {
+      m.name = name;
+      m.upi = upi;
+    }
+    renderSquadManageList();
+    renderExpenseModalFields();
+    renderLeaderboard();
+    renderSettlements();
+    fetchTripData(true);
   } catch (err) {
     showToast(err.message, true);
   }
@@ -767,18 +797,31 @@ async function deleteExpense(id) {
 }
 
 // Delete Member
-async function deleteMember(id) {
+async function deleteMember(id, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  if (!confirm("Are you sure you want to remove this member?")) return;
+
   try {
     const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {
-      showToast(data.error || "Cannot delete", true);
+      showToast(data.error || "Cannot delete member", true);
       return;
     }
     showToast("Member removed");
-    fetchTripData();
+
+    // Immediate local update so squad modal stays open and responsive
+    appState.members = appState.members.filter(m => m.id !== id);
+    renderSquadManageList();
+    renderExpenseModalFields();
+    renderLeaderboard();
+    renderSettlements();
+    fetchTripData(true);
   } catch (err) {
-    showToast("Error removing member", true);
+    showToast("Error removing member: " + err.message, true);
   }
 }
 
@@ -878,6 +921,12 @@ function setupModals() {
         if (e.target === m) m.classList.remove("open");
       });
     }
+  });
+
+  document.querySelectorAll(".modal-window").forEach(win => {
+    win.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
   });
 
   // Select all / None split checkboxes

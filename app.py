@@ -55,11 +55,11 @@ DEFAULT_DATA = {
     "currency": "₹",
     "members": [
         {"id": "mem_1", "name": "Bala", "color": "#6366F1", "upi": ""},
-        {"id": "mem_2", "name": "Member 2", "color": "#10B981", "upi": ""},
-        {"id": "mem_3", "name": "Member 3", "color": "#F59E0B", "upi": ""},
-        {"id": "mem_4", "name": "Member 4", "color": "#EC4899", "upi": ""},
-        {"id": "mem_5", "name": "Member 5", "color": "#8B5CF6", "upi": ""},
-        {"id": "mem_6", "name": "Member 6", "color": "#06B6D4", "upi": ""}
+        {"id": "mem_2", "name": "Naisha", "color": "#10B981", "upi": ""},
+        {"id": "mem_3", "name": "sai praneeth", "color": "#F59E0B", "upi": ""},
+        {"id": "mem_4", "name": "sai nath", "color": "#EC4899", "upi": ""},
+        {"id": "mem_5", "name": "Hema", "color": "#8B5CF6", "upi": ""},
+        {"id": "mem_6", "name": "sannihith", "color": "#06B6D4", "upi": ""}
     ],
     "expenses": [],
     "settlementsHistory": []
@@ -305,6 +305,34 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             body = json.loads(raw_body)
         except Exception:
             body = {}
+
+        if path.startswith("/api/members/") and path != "/api/members":
+            mem_id = path.replace("/api/members/", "").strip()
+            name = body.get("name", "").strip()
+            upi = body.get("upi", "").strip()
+            if not name:
+                self._send_json(400, {"error": "Member name cannot be empty"})
+                return
+            with lock:
+                data = load_data()
+                found = False
+                for m in data.get("members", []):
+                    if m["id"] == mem_id:
+                        m["name"] = name
+                        m["upi"] = upi
+                        found = True
+                        break
+                if not found:
+                    self._send_json(404, {"error": "Member not found"})
+                    return
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "members": data["members"],
+                    "analytics": analytics
+                })
+            return
 
         if path == "/api/members":
             name = body.get("name", "").strip()
