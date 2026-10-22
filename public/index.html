@@ -33,6 +33,10 @@
       </div>
 
       <div class="nav-controls">
+        <div class="storage-pill" id="storage-pill" title="Database status">
+          <span class="storage-icon">🍃</span>
+          <span id="storage-status-text">Cloud Sync</span>
+        </div>
         <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle theme">
           <span class="theme-icon">🌙</span>
         </button>
@@ -141,14 +145,32 @@
       <div class="settlements-flow-grid" id="settlements-container">
         <!-- Injected via JavaScript -->
       </div>
+
+      <div class="settled-history-block" id="settled-history-section" style="margin-top: 32px;">
+        <div class="section-intro">
+          <div>
+            <h3 class="section-heading" style="font-size: 17px;">Settled Payments History</h3>
+            <p class="section-caption">Transfers marked as completed by the squad.</p>
+          </div>
+        </div>
+        <div class="settled-history-list" id="settled-history-container">
+          <!-- Injected via JS -->
+        </div>
+      </div>
     </section>
 
     <!-- ==================== TAB 2: EXPENSES FEED ==================== -->
     <section class="tab-pane" id="pane-expenses">
       <div class="expenses-toolbar">
-        <div class="search-box">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="expense-search-input" placeholder="Search bills (Biryani, Cab, Flurys...)">
+        <div class="search-and-export-row">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="expense-search-input" placeholder="Search bills (Biryani, Cab, Flurys...)">
+          </div>
+          <a href="/api/export/csv" class="btn-action-ghost btn-export" download="kolkata_night_riders_expenses.csv" title="Download Excel/CSV statement">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Export CSV</span>
+          </a>
         </div>
 
         <div class="category-filter-scroll" id="category-filter-bar">
@@ -332,6 +354,45 @@
 
       <div class="modal-action-bar">
         <button type="button" class="btn-action-ghost" id="btn-close-members-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: UPI PAY & QR CODE ==================== -->
+  <div class="modal-overlay" id="modal-upi-qr">
+    <div class="modal-window upi-modal-window">
+      <div class="modal-top">
+        <div class="modal-title-wrap">
+          <span class="badge-mini">INSTANT UPI TRANSFER</span>
+          <h3 class="modal-headline" id="upi-modal-title">Pay via UPI</h3>
+        </div>
+        <button class="modal-x" id="btn-close-upi-modal">&times;</button>
+      </div>
+
+      <div class="modal-body-pad upi-modal-content">
+        <div class="upi-recipient-tag" id="upi-modal-recipient">Rahul (rahul@okaxis)</div>
+        <div class="upi-amount-huge" id="upi-modal-amount">₹0</div>
+
+        <div class="qr-code-wrapper" id="upi-qr-wrapper">
+          <img id="upi-qr-img" src="" alt="UPI QR Code" class="upi-qr-img">
+          <p class="qr-subtext">Point your phone camera or GPay / PhonePe scanner to pay</p>
+        </div>
+
+        <div class="upi-modal-buttons">
+          <a href="#" id="upi-modal-launch-btn" class="btn-action-submit btn-block">
+            <span>⚡</span> Open in Payment App (Mobile)
+          </a>
+
+          <button type="button" class="btn-action-ghost btn-block" id="btn-modal-copy-upi">
+            Copy UPI ID & Amount
+          </button>
+
+          <div class="upi-modal-divider"></div>
+
+          <button type="button" class="btn-action-settle-confirm btn-block" id="btn-modal-mark-settled">
+            <span>✓</span> Mark as Settled & Paid
+          </button>
+        </div>
       </div>
     </div>
   </div>

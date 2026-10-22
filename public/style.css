@@ -1382,8 +1382,200 @@ body {
   gap: 8px;
 }
 
-.app-toast.show {
-  transform: translateX(-50%) translateY(0);
+/* Storage Mode Pill */
+.storage-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.storage-pill.mongodb-active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: var(--accent-emerald);
+}
+
+/* Search and Export Toolbar */
+.search-and-export-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-and-export-row .search-box {
+  flex: 1;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* UPI QR Modal */
+.upi-modal-window {
+  max-width: 420px;
+}
+
+.upi-modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.upi-recipient-tag {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.upi-amount-huge {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--accent-coral);
+  letter-spacing: -1px;
+}
+
+.qr-code-wrapper {
+  background: #FFFFFF;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.upi-qr-img {
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
+.qr-subtext {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.upi-modal-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+}
+
+.upi-modal-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 6px 0;
+}
+
+.btn-action-settle-confirm {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #fff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.btn-action-settle-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* Settled History Cards */
+.settled-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settled-history-card {
+  background: var(--bg-surface);
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settled-history-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settled-check-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.settled-history-title {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.settled-history-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.settled-history-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settled-history-amt {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--accent-emerald);
 }
 
 /* ---------------- RESPONSIVE STYLES ---------------- */

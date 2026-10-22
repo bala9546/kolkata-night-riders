@@ -15,19 +15,41 @@ PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
 lock = threading.Lock()
 
+# ----------------- MONGODB CONNECTION (HYBRID CLOUD STORAGE) -----------------
+MONGODB_URI = os.environ.get("MONGODB_URI") or os.environ.get("MONGO_URI")
+mongo_client = None
+mongo_collection = None
+is_mongo_connected = False
+
+if MONGODB_URI:
+    try:
+        from pymongo import MongoClient
+        mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=4000)
+        mongo_client.admin.command('ping')
+        db = mongo_client["kolkata_night_riders"]
+        mongo_collection = db["trip_data"]
+        is_mongo_connected = True
+        print("🍃 Connected to MongoDB Atlas! Cloud persistence is active.", flush=True)
+    except Exception as e:
+        print(f"⚠️ Could not connect to MongoDB ({e}). Falling back to local storage.", file=sys.stderr)
+        is_mongo_connected = False
+else:
+    print("📁 MONGODB_URI not set. Running on local JSON persistence (data/trip_data.json).", flush=True)
+
 # Initial seed data for Kolkata Night Riders
 DEFAULT_DATA = {
     "tripName": "Kolkata Night Riders 🚖🌙",
     "currency": "₹",
     "members": [
-        {"id": "mem_1", "name": "Bala", "color": "#046A38"},
-        {"id": "mem_2", "name": "Member 2", "color": "#E34222"},
-        {"id": "mem_3", "name": "Member 3", "color": "#046A38"},
-        {"id": "mem_4", "name": "Member 4", "color": "#E34222"},
-        {"id": "mem_5", "name": "Member 5", "color": "#046A38"},
-        {"id": "mem_6", "name": "Member 6", "color": "#E34222"}
+        {"id": "mem_1", "name": "Bala", "color": "#6366F1", "upi": ""},
+        {"id": "mem_2", "name": "Member 2", "color": "#10B981", "upi": ""},
+        {"id": "mem_3", "name": "Member 3", "color": "#F59E0B", "upi": ""},
+        {"id": "mem_4", "name": "Member 4", "color": "#EC4899", "upi": ""},
+        {"id": "mem_5", "name": "Member 5", "color": "#8B5CF6", "upi": ""},
+        {"id": "mem_6", "name": "Member 6", "color": "#06B6D4", "upi": ""}
     ],
-    "expenses": []
+    "expenses": [],
+    "settlementsHistory": []
 }
 
 AVATAR_COLORS = [
@@ -35,29 +57,57 @@ AVATAR_COLORS = [
 ]
 
 def load_data():
+    if is_mongo_connected and mongo_collection is not None:
+        try:
+            doc = mongo_collection.find_one({"_id": "main_trip"})
+            if doc:
+                doc.pop("_id", None)
+                if "settlementsHistory" not in doc:
+                    doc["settlementsHistory"] = []
+                return doc
+            else:
+                save_data(DEFAULT_DATA)
+                return DEFAULT_DATA
+        except Exception as e:
+            print(f"MongoDB read error: {e}", file=sys.stderr)
+
     if not os.path.exists(DATA_FILE):
         os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
         save_data(DEFAULT_DATA)
         return DEFAULT_DATA
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            d = json.load(f)
+            if "settlementsHistory" not in d:
+                d["settlementsHistory"] = []
+            return d
     except Exception as e:
-        print(f"Error loading data: {e}", file=sys.stderr)
+        print(f"Error loading local data: {e}", file=sys.stderr)
         return DEFAULT_DATA
 
 def save_data(data):
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    temp_file = DATA_FILE + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(temp_file, DATA_FILE)
+    if is_mongo_connected and mongo_collection is not None:
+        try:
+            doc = dict(data)
+            doc["_id"] = "main_trip"
+            mongo_collection.replace_one({"_id": "main_trip"}, doc, upsert=True)
+        except Exception as e:
+            print(f"MongoDB write error: {e}", file=sys.stderr)
+
+    try:
+        os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+        temp_file = DATA_FILE + ".tmp"
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(temp_file, DATA_FILE)
+    except Exception as e:
+        print(f"Local file write error: {e}", file=sys.stderr)
 
 def calculate_analytics(data):
     members = data.get("members", [])
     expenses = data.get("expenses", [])
+    settlements_history = data.get("settlementsHistory", [])
     
-    # Track paid totals and owed totals
     paid_totals = {m["id"]: 0.0 for m in members}
     owed_totals = {m["id"]: 0.0 for m in members}
     category_totals = {}
@@ -89,22 +139,35 @@ def calculate_analytics(data):
                     if m_id in owed_totals:
                         owed_totals[m_id] += share
 
-    # Net Balances: Positive = Group owes them (Creditor); Negative = They owe group (Debtor)
+    # Calculate net balance before direct settlements
     net_balances = {}
+    for m in members:
+        m_id = m["id"]
+        net_balances[m_id] = round(paid_totals.get(m_id, 0.0) - owed_totals.get(m_id, 0.0), 2)
+
+    # Factor in recorded settlement payments (transfers already completed)
+    for sh in settlements_history:
+        sh_amt = float(sh.get("amount", 0))
+        from_id = sh.get("fromId")
+        to_id = sh.get("toId")
+        if from_id in net_balances:
+            net_balances[from_id] = round(net_balances[from_id] + sh_amt, 2)
+        if to_id in net_balances:
+            net_balances[to_id] = round(net_balances[to_id] - sh_amt, 2)
+
     member_stats = []
     for m in members:
         m_id = m["id"]
         paid = round(paid_totals.get(m_id, 0.0), 2)
         owed = round(owed_totals.get(m_id, 0.0), 2)
-        balance = round(paid - owed, 2)
-        net_balances[m_id] = balance
         member_stats.append({
             "id": m_id,
             "name": m["name"],
-            "color": m.get("color", "#046A38"),
+            "color": m.get("color", "#6366F1"),
+            "upi": m.get("upi", ""),
             "paid": paid,
             "owed": owed,
-            "balance": balance
+            "balance": net_balances.get(m_id, 0.0)
         })
 
     # Debt Simplification / Settlement Algorithm (Greedy minimum cash-flow)
@@ -151,6 +214,7 @@ def calculate_analytics(data):
         "totalSpent": round(total_spent, 2),
         "memberStats": member_stats,
         "settlements": settlements,
+        "settlementsHistory": settlements_history,
         "categoryTotals": {k: round(v, 2) for k, v in category_totals.items()}
     }
 
@@ -189,12 +253,33 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                     "currency": data.get("currency", "₹"),
                     "members": data.get("members", []),
                     "expenses": data.get("expenses", []),
+                    "settlementsHistory": data.get("settlementsHistory", []),
+                    "storageMode": "mongodb" if is_mongo_connected else "local",
                     "analytics": analytics
                 }
             self._send_json(200, response_data)
             return
 
-        # Fallback to serving static files from public/
+        if path == "/api/export/csv":
+            with lock:
+                data = load_data()
+                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
+                lines = ["Date,Category,Title,Amount,Paid By,Split Between"]
+                for e in data.get("expenses", []):
+                    split_names = "; ".join([members_map.get(m_id, "Member") for m_id in e.get("splitBetween", [])])
+                    payer = members_map.get(e.get("paidBy"), "Unknown")
+                    title = e.get("title", "").replace('"', '""')
+                    lines.append(f'"{e.get("date","")}","{e.get("category","")}","{title}",{e.get("amount",0)},"{payer}","{split_names}"')
+                csv_content = "\n".join(lines).encode("utf-8")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="kolkata_night_riders_expenses.csv"')
+            self.send_header("Content-Length", str(len(csv_content)))
+            self.end_headers()
+            self.wfile.write(csv_content)
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -246,7 +331,7 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             date_val = body.get("date", datetime.now().strftime("%Y-%m-%d"))
 
             if not title or amount <= 0 or not paid_by or not split_between:
-                self._send_json(400, {"error": "Invalid expense details. Check title, amount, payer and split."})
+                self._send_json(400, {"error": "Invalid expense details."})
                 return
 
             with lock:
@@ -274,16 +359,39 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                 })
             return
 
-        if path == "/api/trip-title":
-            title = body.get("tripName", "").strip()
-            if not title:
-                self._send_json(400, {"error": "Title required"})
+        if path == "/api/settlements/mark-paid":
+            from_id = body.get("fromId")
+            to_id = body.get("toId")
+            amount = float(body.get("amount", 0))
+
+            if not from_id or not to_id or amount <= 0:
+                self._send_json(400, {"error": "Invalid settlement details."})
                 return
+
             with lock:
                 data = load_data()
-                data["tripName"] = title
+                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
+                record = {
+                    "id": "set_" + uuid.uuid4().hex[:8],
+                    "fromId": from_id,
+                    "fromName": members_map.get(from_id, "Squad Member"),
+                    "toId": to_id,
+                    "toName": members_map.get(to_id, "Squad Member"),
+                    "amount": round(amount, 2),
+                    "timestamp": datetime.now().isoformat(),
+                    "date": datetime.now().strftime("%d %b %Y, %I:%M %p")
+                }
+                if "settlementsHistory" not in data:
+                    data["settlementsHistory"] = []
+                data["settlementsHistory"].insert(0, record)
                 save_data(data)
-                self._send_json(200, {"success": True, "tripName": title})
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "record": record,
+                    "settlementsHistory": data["settlementsHistory"],
+                    "analytics": analytics
+                })
             return
 
         if path == "/api/reset":
@@ -363,10 +471,9 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             mem_id = path.replace("/api/members/", "").strip()
             with lock:
                 data = load_data()
-                # Check if member has expenses
                 has_expenses = any(e["paidBy"] == mem_id or mem_id in e.get("splitBetween", []) for e in data["expenses"])
                 if has_expenses:
-                    self._send_json(400, {"error": "Cannot delete member with active expenses. Delete or reassign their expenses first."})
+                    self._send_json(400, {"error": "Cannot delete member with active expenses."})
                     return
                 data["members"] = [m for m in data["members"] if m["id"] != mem_id]
                 save_data(data)
@@ -378,12 +485,27 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                 })
             return
 
+        if path.startswith("/api/settlements/history/"):
+            set_id = path.replace("/api/settlements/history/", "").strip()
+            with lock:
+                data = load_data()
+                data["settlementsHistory"] = [s for s in data.get("settlementsHistory", []) if s["id"] != set_id]
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "settlementsHistory": data["settlementsHistory"],
+                    "analytics": analytics
+                })
+            return
+
         self._send_json(404, {"error": "Endpoint not found"})
 
 def run():
     server_address = ("0.0.0.0", PORT)
     httpd = ThreadingHTTPServer(server_address, TripSplitterHandler)
-    print(f"✨ Kolkata Night Riders Trip Splitter running on http://0.0.0.0:{PORT}", flush=True)
+    storage_type = "🍃 MongoDB Atlas" if is_mongo_connected else "📁 Local JSON file"
+    print(f"✨ Kolkata Night Riders running on http://0.0.0.0:{PORT} [{storage_type}]", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

@@ -1,2 +1,2 @@
-# Python standard library is used, no external pip dependencies needed!
-# Keeps the build blazing fast (under 10 seconds on Render)
+pymongo>=4.6.0
+dnspython>=2.4.0

@@ -19,6 +19,7 @@ let currentCategory = "ALL";
 let searchQuery = "";
 let isPolling = true;
 let editingMemberId = null;
+let activeUpiPayment = null;
 
 const CATEGORY_MAP = {
   Food: { icon: "🍲", label: "Food & Drinks" },
@@ -81,10 +82,25 @@ async function fetchTripData(silent = false) {
 
 // ======================== MASTER RENDER ========================
 function renderAll() {
-  const { currency, members, expenses, analytics } = appState;
+  const { currency, members, expenses, analytics, storageMode } = appState;
   const totalSpent = analytics.totalSpent || 0;
   const memberCount = members.length;
   const avg = memberCount > 0 ? Math.round(totalSpent / memberCount) : 0;
+
+  // Storage Mode Pill in Nav
+  const storagePill = document.getElementById("storage-pill");
+  const storageText = document.getElementById("storage-status-text");
+  if (storagePill && storageText) {
+    if (storageMode === "mongodb") {
+      storagePill.classList.add("mongodb-active");
+      storageText.textContent = "MongoDB Cloud";
+      storagePill.title = "Connected to MongoDB Atlas. Data permanently saved in cloud!";
+    } else {
+      storagePill.classList.remove("mongodb-active");
+      storageText.textContent = "Local Storage";
+      storagePill.title = "Running locally. Set MONGODB_URI in Render for cloud sync.";
+    }
+  }
 
   // Hero Numbers
   document.getElementById("stat-total-spent").textContent = `${currency}${totalSpent.toLocaleString("en-IN")}`;
@@ -98,6 +114,7 @@ function renderAll() {
 
   // Views
   renderSettlements();
+  renderSettledHistory();
   renderExpensesFeed();
   renderLeaderboard();
   renderExpenseModalFields();
@@ -137,12 +154,6 @@ function renderSettlements() {
   container.innerHTML = settlements.map(s => {
     const fromMember = memberMap.get(s.fromId) || { name: s.fromName, color: "#F43F5E" };
     const toMember = memberMap.get(s.toId) || { name: s.toName, color: "#10B981" };
-    const upiId = s.toUpi || toMember.upi;
-
-    // UPI Deep Link for Google Pay / PhonePe / Paytm on mobile
-    const upiLink = upiId
-      ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(s.amount)}&cu=INR&tn=Kolkata%20Trip%20Split`
-      : null;
 
     return `
       <div class="settlement-flow-card">
@@ -182,25 +193,127 @@ function renderSettlements() {
             <div class="settlement-sub">Direct Transfer</div>
           </div>
 
-          ${upiLink ? `
-            <a href="${upiLink}" class="btn-upi-pay" title="Open GPay / PhonePe / Paytm">
-              <span>⚡</span> Pay via UPI
-            </a>
-          ` : `
-            <button class="btn-action-ghost btn-sm" onclick="copySettlementDetail('${escapeHtml(fromMember.name)}', '${escapeHtml(toMember.name)}', ${s.amount})">
-              Copy Info
-            </button>
-          `}
+          <button class="btn-upi-pay" onclick="openUpiPaymentModal('${s.fromId}', '${s.toId}', ${s.amount})" title="Pay via UPI or Scan QR">
+            <span>⚡</span> Pay via UPI
+          </button>
         </div>
       </div>
     `;
   }).join("");
 }
 
-function copySettlementDetail(from, to, amt) {
-  const text = `${from} pays ${to}: ₹${amt}`;
-  navigator.clipboard.writeText(text);
-  showToast(`Copied: "${text}"`);
+// Render Completed Settlements History
+function renderSettledHistory() {
+  const container = document.getElementById("settled-history-container");
+  const section = document.getElementById("settled-history-section");
+  const history = appState.settlementsHistory || [];
+  const currency = appState.currency || "₹";
+
+  if (!container || !section) return;
+
+  if (history.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+  container.innerHTML = history.map(item => `
+    <div class="settled-history-card">
+      <div class="settled-history-left">
+        <span class="settled-check-badge">✓</span>
+        <div>
+          <div class="settled-history-title">
+            <strong>${escapeHtml(item.fromName)}</strong> paid <strong>${escapeHtml(item.toName)}</strong>
+          </div>
+          <div class="settled-history-date">${item.date || "Completed"}</div>
+        </div>
+      </div>
+      <div class="settled-history-right">
+        <span class="settled-history-amt">${currency}${item.amount.toLocaleString("en-IN")}</span>
+        <button class="btn-trash-icon" onclick="deleteSettlementHistory('${item.id}')" title="Undo completed settlement">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+// Open UPI QR & Action Modal
+function openUpiPaymentModal(fromId, toId, amount) {
+  const fromMember = appState.members.find(m => m.id === fromId) || { name: "Squad Member" };
+  const toMember = appState.members.find(m => m.id === toId) || { name: "Squad Member", upi: "" };
+  const currency = appState.currency || "₹";
+
+  activeUpiPayment = { fromId, toId, fromName: fromMember.name, toName: toMember.name, amount };
+
+  document.getElementById("upi-modal-title").textContent = `Pay ${toMember.name}`;
+  document.getElementById("upi-modal-recipient").textContent = `${toMember.name}${toMember.upi ? ` • UPI ID: ${toMember.upi}` : ' • (No UPI ID added in Squad)'}`;
+  document.getElementById("upi-modal-amount").textContent = `${currency}${amount.toLocaleString("en-IN")}`;
+
+  const upiId = toMember.upi || "";
+  const upiUri = upiId 
+    ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(amount)}&cu=INR&tn=Kolkata%20Trip%20Split`
+    : `upi://pay?pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(amount)}&cu=INR&tn=Kolkata%20Trip%20Split`;
+
+  // QR Code generated dynamically
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(upiUri)}`;
+  document.getElementById("upi-qr-img").src = qrUrl;
+
+  const launchBtn = document.getElementById("upi-modal-launch-btn");
+  launchBtn.href = upiUri;
+  if (!upiId) {
+    launchBtn.onclick = () => {
+      alert(`Note: ${toMember.name} hasn't added a UPI ID yet. You can add it anytime in "Squad Members"!`);
+    };
+  } else {
+    launchBtn.onclick = null;
+  }
+
+  document.getElementById("modal-upi-qr").classList.add("open");
+}
+
+async function markActivePaymentSettled() {
+  if (!activeUpiPayment) return;
+  const { fromId, toId, fromName, toName, amount } = activeUpiPayment;
+
+  try {
+    const res = await fetch("/api/settlements/mark-paid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromId, toId, amount })
+    });
+
+    if (!res.ok) throw new Error("Could not record settlement");
+
+    document.getElementById("modal-upi-qr").classList.remove("open");
+    activeUpiPayment = null;
+
+    if (typeof confetti === "function") {
+      confetti({
+        particleCount: 80,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ["#10B981", "#6366F1", "#F59E0B"]
+      });
+    }
+
+    showToast(`Marked: ${fromName} paid ${toName} ₹${amount}! 🎉`);
+    fetchTripData();
+  } catch (err) {
+    showToast("Error: " + err.message, true);
+  }
+}
+
+async function deleteSettlementHistory(id) {
+  if (!confirm("Undo this completed payment?")) return;
+  try {
+    const res = await fetch(`/api/settlements/history/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed to undo");
+    showToast("Payment undone");
+    fetchTripData();
+  } catch (err) {
+    showToast("Error undoing settlement", true);
+  }
 }
 
 // ======================== TAB 2: EXPENSES FEED ========================
@@ -750,14 +863,21 @@ function setupModals() {
     membersModal.classList.remove("open");
   });
 
-  document.getElementById("btn-close-members-footer").addEventListener("click", () => {
-    membersModal.classList.remove("open");
+  const upiModal = document.getElementById("modal-upi-qr");
+  document.getElementById("btn-close-upi-modal").addEventListener("click", () => {
+    upiModal.classList.remove("open");
   });
 
-  [expenseModal, membersModal].forEach(m => {
-    m.addEventListener("click", (e) => {
-      if (e.target === m) m.classList.remove("open");
-    });
+  document.getElementById("btn-modal-mark-settled").addEventListener("click", () => {
+    markActivePaymentSettled();
+  });
+
+  [expenseModal, membersModal, upiModal].forEach(m => {
+    if (m) {
+      m.addEventListener("click", (e) => {
+        if (e.target === m) m.classList.remove("open");
+      });
+    }
   });
 
   // Select all / None split checkboxes
