@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>User Manual & Guide • Kolkata Night Riders</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .manual-container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 80px 20px;
+    }
+
+    .manual-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .btn-back-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-back-home:hover {
+      border-color: var(--accent-primary);
+      transform: translateX(-3px);
+      color: #fff;
+    }
+
+    .manual-header-banner {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 36px 24px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(245, 158, 11, 0.1));
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .manual-eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-gold);
+      margin-bottom: 8px;
+    }
+
+    .manual-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .manual-lead {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Jump Pills Navigation */
+    .jump-pills-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 40px;
+      justify-content: center;
+    }
+
+    .jump-pill {
+      padding: 8px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .jump-pill:hover {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+      background: rgba(245, 158, 11, 0.08);
+      transform: translateY(-2px);
+    }
+
+    /* Manual Sections */
+    .manual-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-card);
+      scroll-margin-top: 30px;
+    }
+
+    .section-header-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-icon-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .section-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 16px;
+    }
+
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-content h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .info-callout {
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--accent-primary);
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .info-callout strong {
+      color: var(--text-primary);
+    }
+
+    .tip-callout {
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(245, 158, 11, 0.08);
+      border-left: 4px solid var(--accent-gold);
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .tip-callout strong {
+      color: var(--accent-gold);
+    }
+
+    /* FAQ Accordion */
+    .faq-item {
+      padding: 18px 20px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+    }
+
+    .faq-q {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .faq-q::before {
+      content: "Q.";
+      color: var(--accent-gold);
+      font-weight: 800;
+    }
+
+    .faq-a {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-left: 24px;
+    }
+
+    @media (max-width: 600px) {
+      .manual-container {
+        padding: 20px 14px 60px 14px;
+      }
+      .manual-title {
+        font-size: 26px;
+      }
+      .manual-section {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow Backgrounds -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <div class="manual-container">
+
+    <!-- Top Navigation Bar -->
+    <div class="manual-nav-bar">
+      <a href="index.html" class="btn-back-home">
+        <span>⬅️</span> Back to Splitter App
+      </a>
+      <div class="nav-controls">
+        <div class="architect-nav-pill" title="Lead Architect & System Engineer">
+          <span class="architect-star">⚡</span>
+          <span>Lead Architect: <strong>Bala</strong></span>
+        </div>
+        <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Banner -->
+    <header class="manual-header-banner">
+      <span class="manual-eyebrow">CITY OF JOY 2026 • OFFICIAL SQUAD HANDBOOK</span>
+      <h1 class="manual-title">Kolkata Night Riders 🚖🌙<br>Squad User Manual & Guide</h1>
+      <p class="manual-lead">Everything you and your travel buddies need to know about logging expenses, automated fair splits, instant UPI QR payments, and debt settlements.</p>
+    </header>
+
+    <!-- Jump Navigation Pills -->
+    <nav class="jump-pills-bar">
+      <a href="#quickstart" class="jump-pill">🚀 30-Sec Quickstart</a>
+      <a href="#squad" class="jump-pill">👥 Manage Squad</a>
+      <a href="#expenses" class="jump-pill">💸 Adding Expenses</a>
+      <a href="#settlement" class="jump-pill">🤝 Smart Settlements & UPI</a>
+      <a href="#whatsapp" class="jump-pill">📱 WhatsApp & CSV</a>
+      <a href="#faq" class="jump-pill">❓ FAQs</a>
+    </nav>
+
+    <!-- SECTION 1: QUICKSTART -->
+    <section class="manual-section" id="quickstart">
+      <div class="section-header-block">
+        <div class="section-icon-badge">⚡</div>
+        <div>
+          <h2 class="section-title">1. How The System Works (In 3 Simple Steps)</h2>
+          <p class="section-desc">Zero manual calculations. Zero awkward money chats.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Log the Bill</h4>
+            <p>Whenever anyone pays for an Arsalan Biryani, Yellow Cab, Hotel, or Kulhad Chai, tap <strong>"+ Add Expense"</strong>. Select who paid and check who shared the item.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Algorithm Calculates Fair Share</h4>
+            <p>The app automatically runs a greedy debt simplification cash-flow algorithm. Instead of everyone paying everyone back in 15 different transfers, it condenses all debts into the <strong>absolute minimum number of direct transactions</strong>.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Scan & Pay Instantly via UPI</h4>
+            <p>Head to the <strong>"Settlements"</strong> tab. Tap <strong>"Pay via UPI"</strong> to open GPay / PhonePe directly on mobile, or scan the dynamic QR code from another screen!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: SQUAD MANAGEMENT -->
+    <section class="manual-section" id="squad">
+      <div class="section-header-block">
+        <div class="section-icon-badge">👥</div>
+        <div>
+          <h2 class="section-title">2. Squad Members & UPI IDs</h2>
+          <p class="section-desc">Manage the 6 Kolkata Night Riders adventurers.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">A</div>
+          <div class="step-content">
+            <h4>Viewing The Squad</h4>
+            <p>Click the <strong>"Squad Members"</strong> button on the dashboard header. The 6 squad members are already loaded: <strong>Bala, Naisha, sai praneeth, sai nath, Hema, sannihith</strong>.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">B</div>
+          <div class="step-content">
+            <h4>Editing Names & Linking Your Personal UPI ID</h4>
+            <p>Tap the <strong>Edit</strong> button next to your name. You can update your display name and enter your UPI ID (for example: <code>bala@okhdfcbank</code> or <code>9876543210@paytm</code>). When someone owes you money, the app will generate a direct QR code pointing straight to your bank account!</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">C</div>
+          <div class="step-content">
+            <h4>Member Deletion Rules</h4>
+            <p>Members who have not yet participated in any expenses can be deleted. If a member already has active bills recorded, their delete button is automatically disabled to protect the financial balance of the trip.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip-callout">
+        <strong>💡 Pro Tip:</strong> Always make sure each member enters their real UPI ID in the Squad modal so settlements can be done in 1-tap with QR codes!
+      </div>
+    </section>
+
+    <!-- SECTION 3: ADDING EXPENSES -->
+    <section class="manual-section" id="expenses">
+      <div class="section-header-block">
+        <div class="section-icon-badge">💸</div>
+        <div>
+          <h2 class="section-title">3. Logging & Customizing Expense Splits</h2>
+          <p class="section-desc">Flexible splits for every scenario on the road.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Use Quick Kolkata Presets</h4>
+            <p>Tired of typing on your phone? Tap any of the preset chips: <strong>🚕 Yellow Cab (₹280)</strong>, <strong>🍛 Arsalan Biryani (₹1,850)</strong>, <strong>☕ Kulhad Chai (₹150)</strong>, or <strong>🏛️ Victoria Memorial (₹300)</strong> to auto-fill title, amount, and category instantly!</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Paid By</h4>
+            <p>Select the friend whose UPI or cash actually paid the restaurant or taxi driver.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Split Between (Live Math)</h4>
+            <p>Select which members shared that expense. The app features a live calculator hint (e.g. <em>"₹1,850 split between 5 members = ₹370/person"</em>) that recalculates automatically as you check or uncheck names. Use <strong>"All"</strong> or <strong>"None"</strong> for fast toggling.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-callout">
+        <strong>What if someone didn't eat biryani?</strong> Simply uncheck their name! Only checked members will be charged their fair portion of that specific bill.
+      </div>
+    </section>
+
+    <!-- SECTION 4: SETTLEMENTS & UPI QR -->
+    <section class="manual-section" id="settlement">
+      <div class="section-header-block">
+        <div class="section-icon-badge">🤝</div>
+        <div>
+          <h2 class="section-title">4. Settling Debts & Instant UPI Payments</h2>
+          <p class="section-desc">The magic of debt simplification and seamless payments.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">A</div>
+          <div class="step-content">
+            <h4>The Cashflow Simplifier</h4>
+            <p>If Member A owes Member B ₹200, and Member B owes Member C ₹200, the system cancels out Member B and directs Member A to pay Member C ₹200 directly. This cuts unnecessary payment hops by up to 70%!</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">B</div>
+          <div class="step-content">
+            <h4>On Mobile (Android & iPhone)</h4>
+            <p>Tap <strong>"Pay via UPI"</strong> ➔ Tap <strong>"⚡ Open in Payment App"</strong>. Your phone will directly launch Google Pay, PhonePe, or Paytm with the receiver's UPI ID, name, and exact amount already filled in!</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">C</div>
+          <div class="step-content">
+            <h4>On Desktop / Laptop (Camera Scan)</h4>
+            <p>When you click <strong>"Pay via UPI"</strong> on a laptop, a high-resolution dynamic UPI QR Code appears. Just point your phone's camera or payment app scanner at the computer screen to complete the transfer in 3 seconds!</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">D</div>
+          <div class="step-content">
+            <h4>Mark as Settled</h4>
+            <p>Once you finish the transfer, tap <strong>"✓ Mark as Settled & Paid"</strong>. It saves a permanent record in the <strong>Settlement Payment History</strong> ledger with the exact date and timestamp!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: EXPORT & WHATSAPP -->
+    <section class="manual-section" id="whatsapp">
+      <div class="section-header-block">
+        <div class="section-icon-badge">📱</div>
+        <div>
+          <h2 class="section-title">5. WhatsApp Summary & Excel Export</h2>
+          <p class="section-desc">Keep everyone in the squad aligned.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>1-Click WhatsApp Summary</h4>
+            <p>Tap the green <strong>"Share on WhatsApp"</strong> button on the top banner. It copies an emoji-formatted breakdown of total spend, who needs to pay whom, and individual balances ready to paste into your squad group chat.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Download CSV Spreadsheet</h4>
+            <p>Tap <strong>"Download CSV"</strong> in the All Expenses tab to get a full Microsoft Excel / Google Sheets spreadsheet containing every receipt, date, category, payer, and split breakdown.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6: FAQS -->
+    <section class="manual-section" id="faq">
+      <div class="section-header-block">
+        <div class="section-icon-badge">❓</div>
+        <div>
+          <h2 class="section-title">6. Frequently Asked Questions</h2>
+          <p class="section-desc">Quick answers for squad members.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Is all our trip data saved permanently?</div>
+        <div class="faq-a">Yes! The web application is connected directly to a high-speed <strong>MongoDB Atlas Cloud database</strong>. Whenever you add or edit a bill, it is instantly written to the cloud cluster so nobody loses their data even if they close their browser.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I switch between Dark Mode and Light Mode?</div>
+        <div class="faq-a">Click the 🌙 / ☀️ icon in the top right corner of the navigation bar. Your preference is saved on your device.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Can we add more than 6 members?</div>
+        <div class="faq-a">Yes! Open <strong>"Squad Members"</strong> and type any new member's name and UPI ID in the top field. The app will generate a custom color avatar for them and recalculate all balances dynamically.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What happens if someone accidentally types a wrong bill amount?</div>
+        <div class="faq-a">Open the <strong>"All Expenses"</strong> tab, find the bill, and tap the trash 🗑️ icon to remove it. Then simply log the correct amount.</div>
+      </div>
+    </section>
+
+    <!-- Dedicated Architect & Credits Footer -->
+    <footer class="app-architect-footer">
+      <div class="architect-footer-card">
+        <div class="architect-icon-circle">⚡</div>
+        <div class="architect-details">
+          <div class="architect-system-name">Kolkata Night Riders 🚖 • Smart Trip Splitter</div>
+          <div class="architect-signature">Designed, Architected & Engineered by <span class="architect-highlight">Lead Architect Bala</span></div>
+          <div class="architect-tech-stack">
+            <span class="arch-chip">🍃 MongoDB Atlas Cloud</span>
+            <span class="arch-chip">⚡ Instant UPI QR Engine</span>
+            <span class="arch-chip">🧮 Cashflow Debt Simplifier</span>
+            <span class="arch-chip">📱 Mobile-First Responsive PWA</span>
+          </div>
+        </div>
+      </div>
+      <p class="architect-subtext">Engineered with ❤️ for the Kolkata 2026 Squad • Built & Deployed by Bala</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // Theme toggle
+    const savedTheme = localStorage.getItem("knr_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    const themeBtn = document.getElementById("btn-theme-toggle");
+    const themeIcon = document.querySelector(".theme-icon");
+    if (themeIcon) themeIcon.textContent = savedTheme === "dark" ? "🌙" : "☀️";
+
+    themeBtn?.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme");
+      const next = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("knr_theme", next);
+      if (themeIcon) themeIcon.textContent = next === "dark" ? "🌙" : "☀️";
+    });
+  </script>
+</body>
+</html>
