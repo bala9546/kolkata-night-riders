@@ -241,43 +241,162 @@ function renderSettledHistory() {
   `).join("");
 }
 
+// Copy to clipboard with modern API + mobile fallback
+function copyTextToClipboard(text, successMessage) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage || "Copied to clipboard! 📋");
+    }).catch(() => fallbackCopyText(text, successMessage));
+  } else {
+    fallbackCopyText(text, successMessage);
+  }
+}
+
+function fallbackCopyText(text, successMessage) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  try {
+    document.execCommand("copy");
+    showToast(successMessage || "Copied to clipboard! 📋");
+  } catch (e) {
+    prompt("Copy text below:", text);
+  }
+  document.body.removeChild(textarea);
+}
+
 // Open UPI QR & Action Modal
 function openUpiPaymentModal(fromId, toId, amount) {
   const fromMember = appState.members.find(m => m.id === fromId) || { name: "Squad Member" };
   const toMember = appState.members.find(m => m.id === toId) || { name: "Squad Member", upi: "" };
   const currency = appState.currency || "₹";
 
-  activeUpiPayment = { fromId, toId, fromName: fromMember.name, toName: toMember.name, amount };
+  activeUpiPayment = {
+    fromId,
+    toId,
+    fromName: fromMember.name,
+    toName: toMember.name,
+    fullAmount: amount,
+    amount: amount,
+    upiId: toMember.upi || ""
+  };
 
-  document.getElementById("upi-modal-title").textContent = `Pay ${toMember.name}`;
-  document.getElementById("upi-modal-recipient").textContent = `${toMember.name}${toMember.upi ? ` • UPI ID: ${toMember.upi}` : ' • (No UPI ID added in Squad)'}`;
-  document.getElementById("upi-modal-amount").textContent = `${currency}${amount.toLocaleString("en-IN")}`;
+  document.getElementById("upi-modal-title").textContent = `Settle with ${toMember.name}`;
+  document.getElementById("upi-modal-recipient-name").textContent = `Pay to ${toMember.name}`;
 
-  const upiId = toMember.upi || "";
-  const upiUri = upiId 
-    ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(amount)}&cu=INR&tn=Kolkata%20Trip%20Split`
-    : `upi://pay?pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(amount)}&cu=INR&tn=Kolkata%20Trip%20Split`;
-
-  // QR Code generated dynamically
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(upiUri)}`;
-  document.getElementById("upi-qr-img").src = qrUrl;
-
-  const launchBtn = document.getElementById("upi-modal-launch-btn");
-  launchBtn.href = upiUri;
-  if (!upiId) {
-    launchBtn.onclick = () => {
-      alert(`Note: ${toMember.name} hasn't added a UPI ID yet. You can add it anytime in "Squad Members"!`);
-    };
+  const upiIdText = document.getElementById("upi-modal-id-text");
+  if (toMember.upi) {
+    upiIdText.textContent = toMember.upi;
+    upiIdText.style.color = "#FBBF24";
   } else {
-    launchBtn.onclick = null;
+    upiIdText.textContent = "(No UPI ID added in Squad)";
+    upiIdText.style.color = "var(--text-muted)";
   }
+
+  const amtInput = document.getElementById("upi-modal-amount-input");
+  amtInput.value = amount;
+  document.getElementById("upi-amount-hint").textContent = `Calculated due: ${currency}${amount.toLocaleString("en-IN")} (You can edit if paying partially)`;
+
+  function refreshUpiQrAndLinks() {
+    const curAmt = parseFloat(amtInput.value) || 0;
+    activeUpiPayment.amount = curAmt;
+    const upiId = activeUpiPayment.upiId;
+
+    const upiUri = upiId 
+      ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(curAmt)}&cu=INR&tn=Kolkata%20Trip%20Split`
+      : `upi://pay?pn=${encodeURIComponent(toMember.name)}&am=${encodeURIComponent(curAmt)}&cu=INR&tn=Kolkata%20Trip%20Split`;
+
+    activeUpiPayment.upiUri = upiUri;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(upiUri)}`;
+    document.getElementById("upi-qr-img").src = qrUrl;
+    activeUpiPayment.qrUrl = qrUrl;
+  }
+
+  refreshUpiQrAndLinks();
+
+  amtInput.oninput = () => {
+    refreshUpiQrAndLinks();
+  };
+
+  document.getElementById("btn-reset-upi-amount").onclick = () => {
+    amtInput.value = activeUpiPayment.fullAmount;
+    refreshUpiQrAndLinks();
+    showToast(`Reset to calculated due: ₹${activeUpiPayment.fullAmount}`);
+  };
+
+  document.getElementById("btn-copy-amt-only").onclick = () => {
+    const curAmt = amtInput.value;
+    copyTextToClipboard(curAmt, `Copied amount: ₹${curAmt} 📋`);
+  };
+
+  // 1-Click Copy Payee UPI ID
+  const copyIdBtn = document.getElementById("btn-copy-upi-id-only");
+  const copyIdText = document.getElementById("copy-id-chip-text");
+  copyIdBtn.onclick = () => {
+    if (!activeUpiPayment.upiId) {
+      showToast(`${toMember.name} has no UPI ID added. Tap "Squad Members" to add it!`, true);
+      return;
+    }
+    copyTextToClipboard(activeUpiPayment.upiId, `Copied UPI ID: ${activeUpiPayment.upiId} 📋`);
+    copyIdText.textContent = "✓ Copied!";
+    copyIdBtn.classList.add("copied");
+    setTimeout(() => {
+      copyIdText.textContent = "Copy UPI ID";
+      copyIdBtn.classList.remove("copied");
+    }, 2000);
+  };
+
+  // Copy Full Details
+  document.getElementById("btn-modal-copy-upi").onclick = () => {
+    const curAmt = amtInput.value;
+    const details = `Payee: ${toMember.name}\nUPI ID: ${activeUpiPayment.upiId || 'Not added'}\nAmount: ₹${curAmt}\nNote: Kolkata Night Riders Split`;
+    copyTextToClipboard(details, `Copied transfer details (₹${curAmt})! 📋`);
+  };
+
+  // Download / Save QR Code
+  document.getElementById("btn-download-qr").onclick = async () => {
+    const qrUrl = activeUpiPayment.qrUrl;
+    const curAmt = amtInput.value;
+    const fileName = `KNR_Pay_${toMember.name.replace(/\s+/g, '_')}_Rs${curAmt}.png`;
+
+    try {
+      showToast("Preparing QR download... 📥");
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = blobUrl;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      showToast(`QR Code saved as ${fileName}! 📥`);
+    } catch (err) {
+      // Fallback: open QR in new window for easy long-press saving
+      window.open(qrUrl, "_blank");
+      showToast("Opened QR image. Long-press or right-click to Save! 📥");
+    }
+  };
 
   document.getElementById("modal-upi-qr").classList.add("open");
 }
 
 async function markActivePaymentSettled() {
   if (!activeUpiPayment) return;
-  const { fromId, toId, fromName, toName, amount } = activeUpiPayment;
+  const { fromId, toId, fromName, toName } = activeUpiPayment;
+  const amtInput = document.getElementById("upi-modal-amount-input");
+  const amount = amtInput ? (parseFloat(amtInput.value) || activeUpiPayment.amount) : activeUpiPayment.amount;
+
+  if (amount <= 0) {
+    showToast("Please enter a valid amount to settle", true);
+    return;
+  }
 
   try {
     const res = await fetch("/api/settlements/mark-paid", {
@@ -300,7 +419,7 @@ async function markActivePaymentSettled() {
       });
     }
 
-    showToast(`Marked: ${fromName} paid ${toName} ₹${amount}! 🎉`);
+    showToast(`Marked: ${fromName} paid ${toName} ₹${amount.toLocaleString("en-IN")}! 🎉`);
     fetchTripData();
   } catch (err) {
     showToast("Error: " + err.message, true);
