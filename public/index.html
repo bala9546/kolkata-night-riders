@@ -1,264 +1,343 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kolkata Night Riders • Trip Splits</title>
+  <title>Kolkata Night Riders • Smart Trip Splitter</title>
+  
+  <!-- Modern Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Canvas Confetti for Celebrations -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Top Decorative Banner -->
-  <header class="app-header">
-    <div class="header-container">
-      <div class="header-stamp">
-        <span class="stamp-pill">TRIP 2026</span>
-        <span class="stamp-city">KOLKATA • CALCUTTA</span>
+  <!-- Ambient Glow Backgrounds -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-nav">
+    <div class="nav-container">
+      <div class="brand-badge">
+        <span class="taxi-pulse">🚖</span>
+        <div class="brand-text">
+          <span class="brand-eyebrow">CITY OF JOY • 2026</span>
+          <h1 class="brand-title">Kolkata Night Riders</h1>
+        </div>
       </div>
-      <div class="brand-title-wrap">
-        <div class="taxi-icon-badge">🚖</div>
-        <h1 class="brand-title">Kolkata Night Riders</h1>
-        <p class="brand-tagline">Fair splits • Zero awkward math • Instant settlements</p>
-      </div>
-      <div class="live-indicator-badge">
-        <span class="live-dot"></span> Live Sync
+
+      <div class="nav-controls">
+        <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+        <div class="live-pill">
+          <span class="live-dot"></span>
+          <span>Live Sync</span>
+        </div>
       </div>
     </div>
   </header>
 
-  <!-- Main Content Wrap -->
-  <main class="main-container">
-    
-    <!-- Hero Stats Banner -->
-    <section class="stats-grid">
-      <div class="stat-card hero-stat">
-        <span class="stat-label">Total Trip Expenses</span>
-        <div class="stat-value" id="stat-total-spent">₹0</div>
-        <span class="stat-sub" id="stat-expense-count">0 bills logged</span>
+  <!-- Main Container -->
+  <main class="main-wrapper">
+
+    <!-- Interactive Hero Banner -->
+    <section class="hero-dashboard">
+      <div class="hero-left">
+        <div class="hero-stat-card primary-gradient">
+          <div class="hero-stat-header">
+            <span class="stat-tag">Total Trip Spend</span>
+            <span class="stat-badge-pulse" id="stat-currency-badge">₹ INR</span>
+          </div>
+          <div class="hero-amount" id="stat-total-spent">₹0</div>
+          <div class="hero-footer-stats">
+            <div class="mini-stat">
+              <span class="mini-stat-label">Avg / Person</span>
+              <span class="mini-stat-val" id="stat-avg-spend">₹0</span>
+            </div>
+            <div class="mini-stat-divider"></div>
+            <div class="mini-stat">
+              <span class="mini-stat-label">Total Bills</span>
+              <span class="mini-stat-val" id="stat-total-bills">0</span>
+            </div>
+            <div class="mini-stat-divider"></div>
+            <div class="mini-stat">
+              <span class="mini-stat-label">Squad Size</span>
+              <span class="mini-stat-val" id="stat-squad-size">6</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="stat-card">
-        <span class="stat-label">The Squad</span>
-        <div class="stat-value text-green" id="stat-member-count">6</div>
-        <span class="stat-sub">Active members</span>
-      </div>
+      <!-- Quick Actions Panel -->
+      <div class="quick-actions-panel">
+        <button class="action-btn action-primary" id="btn-open-add-expense">
+          <div class="btn-icon-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </div>
+          <div class="btn-text-block">
+            <span class="btn-title">Add Expense</span>
+            <span class="btn-subtitle">Split food, cabs, hotels</span>
+          </div>
+        </button>
 
-      <div class="stat-card">
-        <span class="stat-label">Pending Settlements</span>
-        <div class="stat-value text-vermilion" id="stat-settlement-count">0</div>
-        <span class="stat-sub">Transfers needed</span>
+        <button class="action-btn action-whatsapp" id="btn-copy-whatsapp">
+          <div class="btn-icon-circle whatsapp-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          </div>
+          <div class="btn-text-block">
+            <span class="btn-title">WhatsApp Summary</span>
+            <span class="btn-subtitle">Copy 1-click group breakdown</span>
+          </div>
+        </button>
+
+        <button class="action-btn action-secondary" id="btn-open-manage-members">
+          <div class="btn-icon-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </div>
+          <div class="btn-text-block">
+            <span class="btn-title">Squad Members</span>
+            <span class="btn-subtitle">Add or edit names & UPI</span>
+          </div>
+        </button>
       </div>
     </section>
 
-    <!-- Quick Action Bar -->
-    <div class="action-bar">
-      <button class="btn btn-vermilion" id="btn-open-expense-modal">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Add New Expense
+    <!-- Interactive Navigation Tabs -->
+    <nav class="navigation-tabs">
+      <button class="nav-tab-btn active" data-tab="settlements">
+        <span class="tab-icon">⚡</span>
+        <span>Smart Settlements</span>
+        <span class="tab-counter" id="tab-counter-settlements">0</span>
       </button>
 
-      <button class="btn btn-outline" id="btn-copy-whatsapp">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-        Copy WhatsApp Summary
+      <button class="nav-tab-btn" data-tab="expenses">
+        <span class="tab-icon">🧾</span>
+        <span>Expenses Feed</span>
+        <span class="tab-counter" id="tab-counter-expenses">0</span>
       </button>
 
-      <button class="btn btn-secondary" id="btn-open-member-modal">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        Manage Members
-      </button>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="settlements">
-        <span>🤝</span> Who Owes Who
-      </button>
-      <button class="tab-btn" data-tab="expenses">
-        <span>🧾</span> All Expenses (<span id="tab-expense-badge">0</span>)
-      </button>
-      <button class="tab-btn" data-tab="balances">
-        <span>📊</span> Individual Balances
+      <button class="nav-tab-btn" data-tab="leaderboard">
+        <span class="tab-icon">🏆</span>
+        <span>Leaderboard & Balances</span>
       </button>
     </nav>
 
-    <!-- Tab 1: Who Owes Who (Settlements) -->
-    <section class="tab-content active" id="tab-settlements">
-      <div class="content-header">
+    <!-- ==================== TAB 1: SMART SETTLEMENTS ==================== -->
+    <section class="tab-pane active" id="pane-settlements">
+      <div class="section-intro">
         <div>
-          <h2 class="section-title">Simplified Settlements</h2>
-          <p class="section-desc">Calculated with minimum cash-flow transactions so nobody makes extra transfers.</p>
+          <h2 class="section-heading">Direct Settlements</h2>
+          <p class="section-caption">Optimized with zero redundant transactions. Tap "Pay via UPI" to settle in 1 click.</p>
         </div>
       </div>
 
-      <div id="settlements-container" class="settlements-list">
-        <!-- Rendered via JS -->
+      <div class="settlements-flow-grid" id="settlements-container">
+        <!-- Injected via JavaScript -->
       </div>
     </section>
 
-    <!-- Tab 2: All Expenses -->
-    <section class="tab-content" id="tab-expenses">
-      <div class="content-header filter-wrap">
-        <div>
-          <h2 class="section-title">Expense History</h2>
-          <p class="section-desc">Every bill, taxi ride, and meal added by the squad.</p>
+    <!-- ==================== TAB 2: EXPENSES FEED ==================== -->
+    <section class="tab-pane" id="pane-expenses">
+      <div class="expenses-toolbar">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="expense-search-input" placeholder="Search bills (Biryani, Cab, Flurys...)">
         </div>
-        
-        <!-- Category Filter -->
-        <div class="category-pills" id="category-filter-bar">
-          <button class="pill active" data-category="ALL">All</button>
-          <button class="pill" data-category="Food">🍲 Food</button>
-          <button class="pill" data-category="Travel">🚕 Travel</button>
-          <button class="pill" data-category="Stay">🏨 Stay</button>
-          <button class="pill" data-category="Chai">☕ Chai</button>
-          <button class="pill" data-category="Sightseeing">🏛️ Sights</button>
-          <button class="pill" data-category="General">🎟️ Other</button>
+
+        <div class="category-filter-scroll" id="category-filter-bar">
+          <button class="cat-pill active" data-category="ALL">All Categories</button>
+          <button class="cat-pill" data-category="Food">🍲 Food & Dining</button>
+          <button class="cat-pill" data-category="Travel">🚕 Yellow Cabs</button>
+          <button class="cat-pill" data-category="Stay">🏨 Hotel & Stay</button>
+          <button class="cat-pill" data-category="Chai">☕ Kulhad Chai</button>
+          <button class="cat-pill" data-category="Sightseeing">🏛️ Sights & Entry</button>
+          <button class="cat-pill" data-category="General">🎟️ Others</button>
         </div>
       </div>
 
-      <div id="expenses-container" class="expenses-list">
-        <!-- Rendered via JS -->
+      <div class="expenses-feed" id="expenses-feed-container">
+        <!-- Injected via JavaScript -->
       </div>
     </section>
 
-    <!-- Tab 3: Balances per person -->
-    <section class="tab-content" id="tab-balances">
-      <div class="content-header">
+    <!-- ==================== TAB 3: LEADERBOARD & BALANCES ==================== -->
+    <section class="tab-pane" id="pane-leaderboard">
+      <div class="section-intro">
         <div>
-          <h2 class="section-title">Squad Leaderboard</h2>
-          <p class="section-desc">See who paid the most and who needs to settle up.</p>
+          <h2 class="section-heading">Squad Contribution & Balances</h2>
+          <p class="section-caption">Who funded the most adventures, and who needs to clear dues.</p>
         </div>
       </div>
 
-      <div id="balances-container" class="balances-grid">
-        <!-- Rendered via JS -->
+      <div class="leaderboard-grid" id="leaderboard-container">
+        <!-- Injected via JavaScript -->
       </div>
     </section>
 
   </main>
 
-  <!-- Modal: Add Expense -->
-  <div class="modal-backdrop" id="modal-expense">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">NEW RECORD</span>
-          <h3 class="modal-title">Add Trip Expense</h3>
+  <!-- ==================== MODAL: ADD EXPENSE ==================== -->
+  <div class="modal-overlay" id="modal-expense">
+    <div class="modal-window">
+      <div class="modal-top">
+        <div class="modal-title-wrap">
+          <span class="badge-mini">LOG EXPENSE</span>
+          <h3 class="modal-headline">Add Kolkata Expense</h3>
         </div>
-        <button class="modal-close" id="btn-close-expense-modal">&times;</button>
+        <button class="modal-x" id="btn-close-expense-modal">&times;</button>
       </div>
 
-      <form id="form-add-expense" class="modal-body">
-        
-        <!-- Amount & Title -->
-        <div class="form-row">
-          <div class="form-group flex-2">
-            <label class="form-label" for="expense-title">What was this for?</label>
-            <input type="text" id="expense-title" class="form-input" placeholder="e.g. Arsalan Biryani, Howrah Yellow Taxi" required>
-          </div>
-          <div class="form-group flex-1">
-            <label class="form-label" for="expense-amount">Amount (₹)</label>
-            <input type="number" id="expense-amount" class="form-input" placeholder="0" min="1" step="0.5" required>
+      <form id="form-add-expense" class="modal-form">
+
+        <!-- Quick Kolkata Presets -->
+        <div class="preset-section">
+          <span class="preset-label">Quick Presets:</span>
+          <div class="preset-chips">
+            <button type="button" class="preset-chip" data-title="Yellow Cab Ride" data-amount="280" data-cat="Travel">🚕 Yellow Cab (₹280)</button>
+            <button type="button" class="preset-chip" data-title="Arsalan Biryani" data-amount="1850" data-cat="Food">🍛 Arsalan Biryani (₹1,850)</button>
+            <button type="button" class="preset-chip" data-title="Kulhad Chai & Snacks" data-amount="150" data-cat="Chai">☕ Kulhad Chai (₹150)</button>
+            <button type="button" class="preset-chip" data-title="Victoria Memorial Entry" data-amount="300" data-cat="Sightseeing">🏛️ Victoria Memorial (₹300)</button>
           </div>
         </div>
 
-        <!-- Category Picker -->
-        <div class="form-group">
-          <label class="form-label">Category</label>
-          <div class="category-selector-grid">
-            <label class="cat-option">
+        <!-- Title & Amount Inputs -->
+        <div class="form-grid-2">
+          <div class="input-field-group">
+            <label class="field-label" for="expense-title">Expense Title</label>
+            <input type="text" id="expense-title" class="custom-input" placeholder="e.g. Peter Cat Chelo Kebab" required>
+          </div>
+          <div class="input-field-group">
+            <label class="field-label" for="expense-amount">Amount (₹)</label>
+            <input type="number" id="expense-amount" class="custom-input amount-bold" placeholder="0" min="1" step="0.5" required>
+          </div>
+        </div>
+
+        <!-- Category Grid -->
+        <div class="input-field-group">
+          <label class="field-label">Category</label>
+          <div class="category-radio-grid">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="Food" checked>
-              <div class="cat-pill"><span>🍲</span> Food & Drinks</div>
+              <div class="cat-box">
+                <span class="cat-emoji">🍲</span>
+                <span class="cat-title">Food & Drinks</span>
+              </div>
             </label>
-            <label class="cat-option">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="Travel">
-              <div class="cat-pill"><span>🚕</span> Travel & Cab</div>
+              <div class="cat-box">
+                <span class="cat-emoji">🚕</span>
+                <span class="cat-title">Yellow Cab</span>
+              </div>
             </label>
-            <label class="cat-option">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="Stay">
-              <div class="cat-pill"><span>🏨</span> Hotel / Stay</div>
+              <div class="cat-box">
+                <span class="cat-emoji">🏨</span>
+                <span class="cat-title">Hotel / Stay</span>
+              </div>
             </label>
-            <label class="cat-option">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="Chai">
-              <div class="cat-pill"><span>☕</span> Chai / Snacks</div>
+              <div class="cat-box">
+                <span class="cat-emoji">☕</span>
+                <span class="cat-title">Chai / Snacks</span>
+              </div>
             </label>
-            <label class="cat-option">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="Sightseeing">
-              <div class="cat-pill"><span>🏛️</span> Sightseeing</div>
+              <div class="cat-box">
+                <span class="cat-emoji">🏛️</span>
+                <span class="cat-title">Sightseeing</span>
+              </div>
             </label>
-            <label class="cat-option">
+            <label class="cat-card">
               <input type="radio" name="expense-category" value="General">
-              <div class="cat-pill"><span>🎟️</span> Misc / Other</div>
+              <div class="cat-box">
+                <span class="cat-emoji">🎟️</span>
+                <span class="cat-title">Others</span>
+              </div>
             </label>
           </div>
         </div>
 
         <!-- Paid By -->
-        <div class="form-group">
-          <label class="form-label" for="expense-paid-by">Who paid for this?</label>
-          <select id="expense-paid-by" class="form-select" required>
+        <div class="input-field-group">
+          <label class="field-label" for="expense-paid-by">Paid By (Who fronted the money?)</label>
+          <select id="expense-paid-by" class="custom-select" required>
             <!-- Injected by JS -->
           </select>
         </div>
 
-        <!-- Split Between (Customizable) -->
-        <div class="form-group">
-          <div class="split-header-row">
-            <label class="form-label">Split With</label>
-            <div class="split-quick-actions">
-              <button type="button" class="btn-text-link" id="btn-split-select-all">Select All</button>
-              <span>•</span>
-              <button type="button" class="btn-text-link" id="btn-split-clear-all">Clear</button>
+        <!-- Dynamic Live Split Matrix -->
+        <div class="input-field-group">
+          <div class="split-controls-bar">
+            <div>
+              <label class="field-label">Split Between</label>
+              <span class="live-calc-hint" id="live-split-hint">Select members below</span>
+            </div>
+            <div class="quick-toggle-links">
+              <button type="button" class="btn-inline-link" id="btn-split-all">All</button>
+              <span class="dot-separator">•</span>
+              <button type="button" class="btn-inline-link" id="btn-split-none">None</button>
             </div>
           </div>
-          <p class="form-hint">Uncheck members who did not participate in this expense.</p>
 
-          <div id="split-members-checklist" class="split-checklist">
-            <!-- Injected by JS -->
+          <div class="members-checkbox-grid" id="split-checkboxes-container">
+            <!-- Injected by JS with avatars -->
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" id="btn-cancel-expense">Cancel</button>
-          <button type="submit" class="btn btn-vermilion" id="btn-submit-expense">Save Expense</button>
+        <div class="modal-action-bar">
+          <button type="button" class="btn-action-ghost" id="btn-cancel-expense">Cancel</button>
+          <button type="submit" class="btn-action-submit">
+            <span>Save & Split</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
         </div>
+
       </form>
     </div>
   </div>
 
-  <!-- Modal: Manage Members -->
-  <div class="modal-backdrop" id="modal-members">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">THE SQUAD</span>
-          <h3 class="modal-title">Trip Members</h3>
+  <!-- ==================== MODAL: MANAGE SQUAD ==================== -->
+  <div class="modal-overlay" id="modal-members">
+    <div class="modal-window">
+      <div class="modal-top">
+        <div class="modal-title-wrap">
+          <span class="badge-mini">THE GANG</span>
+          <h3 class="modal-headline">Manage Squad</h3>
         </div>
-        <button class="modal-close" id="btn-close-member-modal">&times;</button>
+        <button class="modal-x" id="btn-close-members-modal">&times;</button>
       </div>
 
-      <div class="modal-body">
-        <form id="form-add-member" class="add-member-form">
-          <input type="text" id="new-member-name" class="form-input" placeholder="Enter friend's name..." required>
-          <button type="submit" class="btn btn-green">Add Member</button>
+      <div class="modal-body-pad">
+        <form id="form-add-member" class="add-member-bar">
+          <input type="text" id="new-member-name" class="custom-input" placeholder="Friend's Name..." required>
+          <input type="text" id="new-member-upi" class="custom-input upi-input" placeholder="UPI ID (optional, e.g. name@upi)">
+          <button type="submit" class="btn-action-submit btn-sm">Add</button>
         </form>
 
-        <div class="members-manage-list" id="members-manage-container">
+        <div class="squad-list-view" id="squad-list-container">
           <!-- Injected by JS -->
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" id="btn-close-member-modal-footer">Done</button>
+      <div class="modal-action-bar">
+        <button type="button" class="btn-action-ghost" id="btn-close-members-footer">Close</button>
       </div>
     </div>
   </div>
 
   <!-- Toast Notification -->
-  <div id="toast" class="toast"></div>
+  <div class="app-toast" id="app-toast"></div>
 
   <script src="app.js"></script>
 </body>

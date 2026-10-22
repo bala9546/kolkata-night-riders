@@ -1,0 +1,37 @@
+{
+  "tripName": "Kolkata Night Riders 🚖🌙",
+  "currency": "₹",
+  "members": [
+    {
+      "id": "mem_1",
+      "name": "Bala",
+      "color": "#046A38"
+    },
+    {
+      "id": "mem_2",
+      "name": "Member 2",
+      "color": "#E34222"
+    },
+    {
+      "id": "mem_3",
+      "name": "Member 3",
+      "color": "#046A38"
+    },
+    {
+      "id": "mem_4",
+      "name": "Member 4",
+      "color": "#E34222"
+    },
+    {
+      "id": "mem_5",
+      "name": "Member 5",
+      "color": "#046A38"
+    },
+    {
+      "id": "mem_6",
+      "name": "Member 6",
+      "color": "#E34222"
+    }
+  ],
+  "expenses": []
+}

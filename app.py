@@ -31,8 +31,7 @@ DEFAULT_DATA = {
 }
 
 AVATAR_COLORS = [
-    "#046A38", "#E34222", "#078044", "#C83416", "#03502A", "#B82C11",
-    "#185E39", "#DE5437"
+    "#6366F1", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#06B6D4", "#F43F5E", "#3B82F6"
 ]
 
 def load_data():
@@ -123,6 +122,7 @@ def calculate_analytics(data):
     settlements = []
     c_idx, d_idx = 0, 0
     members_map = {m["id"]: m["name"] for m in members}
+    members_upi_map = {m["id"]: m.get("upi", "") for m in members}
 
     while c_idx < len(creditors) and d_idx < len(debtors):
         c_id, c_amt = creditors[c_idx]
@@ -135,6 +135,7 @@ def calculate_analytics(data):
                 "fromName": members_map.get(d_id, "Unknown"),
                 "toId": c_id,
                 "toName": members_map.get(c_id, "Unknown"),
+                "toUpi": members_upi_map.get(c_id, ""),
                 "amount": round(settled, 2)
             })
 
@@ -209,6 +210,7 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/members":
             name = body.get("name", "").strip()
+            upi = body.get("upi", "").strip()
             if not name:
                 self._send_json(400, {"error": "Member name is required"})
                 return
@@ -219,7 +221,8 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                 new_member = {
                     "id": "mem_" + uuid.uuid4().hex[:8],
                     "name": name,
-                    "color": color
+                    "color": color,
+                    "upi": upi
                 }
                 data["members"].append(new_member)
                 save_data(data)
