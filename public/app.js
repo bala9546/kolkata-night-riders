@@ -7,6 +7,8 @@ let appState = {
   currency: "₹",
   members: [],
   expenses: [],
+  settlementsHistory: [],
+  settlementClaims: [],
   analytics: {
     totalSpent: 0,
     memberStats: [],
@@ -14,6 +16,15 @@ let appState = {
     categoryTotals: {}
   }
 };
+
+let authToken = localStorage.getItem("knr_auth_token") || "";
+let currentUser = null;
+try {
+  const savedUser = localStorage.getItem("knr_auth_user");
+  if (savedUser) currentUser = JSON.parse(savedUser);
+} catch (e) {
+  currentUser = null;
+}
 
 let currentCategory = "ALL";
 let searchQuery = "";
@@ -33,9 +44,11 @@ const CATEGORY_MAP = {
 // ======================== INITIALIZATION ========================
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  initAuth();
   fetchTripData();
   setupTabs();
   setupModals();
+  setupAuthModals();
   setupFormListeners();
   setupPresets();
   setupSearch();
@@ -56,7 +69,7 @@ function initTheme() {
   document.documentElement.setAttribute("data-theme", savedTheme);
   updateThemeIcon(savedTheme);
 
-  document.getElementById("btn-theme-toggle").addEventListener("click", () => {
+  document.getElementById("btn-theme-toggle")?.addEventListener("click", () => {
     const current = document.documentElement.getAttribute("data-theme");
     const next = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
@@ -70,10 +83,131 @@ function updateThemeIcon(theme) {
   if (icon) icon.textContent = theme === "dark" ? "🌙" : "☀️";
 }
 
+// ======================== AUTHENTICATION HELPERS ========================
+async function authFetch(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+    headers["X-Auth-Token"] = authToken;
+  }
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401 && !url.includes("/api/auth/login")) {
+    // Session expired or invalid
+    authToken = "";
+    currentUser = null;
+    localStorage.removeItem("knr_auth_token");
+    localStorage.removeItem("knr_auth_user");
+    updateNavUserPill();
+    openLoginModal(false);
+  }
+  return response;
+}
+
+async function initAuth() {
+  updateNavUserPill();
+  if (authToken) {
+    try {
+      const res = await authFetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        currentUser = data.user;
+        localStorage.setItem("knr_auth_user", JSON.stringify(currentUser));
+        updateNavUserPill();
+      } else {
+        authToken = "";
+        currentUser = null;
+        localStorage.removeItem("knr_auth_token");
+        localStorage.removeItem("knr_auth_user");
+        updateNavUserPill();
+        openLoginModal(false);
+      }
+    } catch (err) {
+      // Offline fallback: keep existing local currentUser
+      updateNavUserPill();
+    }
+  } else {
+    // Prompt login on first visit
+    setTimeout(() => {
+      if (!currentUser) openLoginModal(false);
+    }, 500);
+  }
+}
+
+function updateNavUserPill() {
+  const navAvatar = document.getElementById("nav-user-avatar");
+  const navName = document.getElementById("nav-user-name");
+  const navRole = document.getElementById("nav-user-role");
+  const dropAvatar = document.getElementById("dropdown-user-avatar");
+  const dropFull = document.getElementById("dropdown-user-full");
+  const dropRole = document.getElementById("dropdown-role-tag");
+  const adminResetBtn = document.getElementById("btn-menu-admin-reset");
+
+  if (currentUser) {
+    const initial = (currentUser.name || "U").charAt(0).toUpperCase();
+    const bgCol = currentUser.color || "#6366F1";
+    const isAdmin = currentUser.role === "admin" || (currentUser.name || "").toLowerCase() === "bala";
+
+    if (navAvatar) {
+      navAvatar.textContent = initial;
+      navAvatar.style.backgroundColor = bgCol;
+    }
+    if (navName) navName.textContent = currentUser.name;
+    if (navRole) navRole.textContent = isAdmin ? "⚡ Lead Architect" : "Squad";
+
+    if (dropAvatar) {
+      dropAvatar.textContent = initial;
+      dropAvatar.style.backgroundColor = bgCol;
+    }
+    if (dropFull) dropFull.textContent = currentUser.name;
+    if (dropRole) dropRole.textContent = isAdmin ? "⚡ Lead Architect (Admin)" : "Squad Member";
+
+    if (adminResetBtn) {
+      adminResetBtn.style.display = isAdmin ? "flex" : "none";
+    }
+  } else {
+    if (navAvatar) {
+      navAvatar.textContent = "?";
+      navAvatar.style.backgroundColor = "#64748B";
+    }
+    if (navName) navName.textContent = "Log In";
+    if (navRole) navRole.textContent = "Squad";
+
+    if (dropAvatar) {
+      dropAvatar.textContent = "?";
+      dropAvatar.style.backgroundColor = "#64748B";
+    }
+    if (dropFull) dropFull.textContent = "Guest";
+    if (dropRole) dropRole.textContent = "Not Logged In";
+    if (adminResetBtn) adminResetBtn.style.display = "none";
+  }
+}
+
+function openLoginModal(closable = true) {
+  const modal = document.getElementById("modal-auth-login");
+  const closeBtn = document.getElementById("btn-close-login-modal");
+  if (!modal) return;
+  if (closeBtn) closeBtn.style.display = closable ? "block" : "none";
+  populateLoginSelect();
+  modal.classList.add("open");
+}
+
+function populateLoginSelect() {
+  const sel = document.getElementById("login-member-select");
+  if (!sel) return;
+  const members = appState.members || [];
+  if (members.length === 0) return;
+
+  sel.innerHTML = members.map(m => {
+    const isAdmin = m.role === "admin" || (m.name || "").toLowerCase() === "bala";
+    const isSelected = currentUser && currentUser.id === m.id ? "selected" : "";
+    return `<option value="${m.id}" ${isSelected}>${escapeHtml(m.name)} ${isAdmin ? "⚡ (Lead Architect / Admin)" : ""}</option>`;
+  }).join("");
+}
+
 // ======================== DATA FETCHING ========================
 async function fetchTripData(silent = false) {
   try {
-    const res = await fetch("/api/data");
+    const res = await authFetch("/api/data");
     if (!res.ok) throw new Error("Could not fetch trip data");
     const data = await res.json();
     appState = data;
@@ -116,6 +250,8 @@ function renderAll() {
   document.getElementById("tab-counter-expenses").textContent = expenses.length;
 
   // Views
+  populateLoginSelect();
+  renderPendingClaims();
   renderSettlements();
   renderSettledHistory();
   renderExpensesFeed();
@@ -124,7 +260,126 @@ function renderAll() {
   renderSquadManageList();
 }
 
-// ======================== TAB 1: SETTLEMENTS ========================
+// ======================== TAB 1: SETTLEMENTS & CLAIMS ========================
+function renderPendingClaims() {
+  const container = document.getElementById("pending-claims-container");
+  const section = document.getElementById("pending-claims-section");
+  const badge = document.getElementById("pending-claims-badge");
+  const claims = appState.settlementClaims || [];
+  const currency = appState.currency || "₹";
+
+  if (!container || !section) return;
+
+  if (claims.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+  if (badge) badge.textContent = `${claims.length} Pending`;
+
+  const memberMap = new Map(appState.members.map(m => [m.id, m]));
+
+  container.innerHTML = claims.map(claim => {
+    const fromMember = memberMap.get(claim.fromId) || { name: claim.fromName, color: "#F43F5E" };
+    const toMember = memberMap.get(claim.toId) || { name: claim.toName, color: "#10B981" };
+
+    const isReceiver = currentUser && currentUser.id === claim.toId;
+    const isAdmin = currentUser && (currentUser.role === "admin" || (currentUser.name || "").toLowerCase() === "bala");
+    const isDebtor = currentUser && currentUser.id === claim.fromId;
+
+    let actionsHtml = "";
+    if (isReceiver || isAdmin) {
+      actionsHtml = `
+        <button class="btn-claim-confirm" onclick="confirmSettlementClaim('${claim.id}')" title="Check your bank/UPI app, then confirm">
+          <span>✓</span> Confirm Received
+        </button>
+        <button class="btn-claim-reject" onclick="rejectSettlementClaim('${claim.id}')" title="Reject if not received in your bank">
+          <span>✗</span> Reject
+        </button>
+      `;
+    } else if (isDebtor) {
+      actionsHtml = `<span class="claim-notice-debtor">⏳ Waiting for ${escapeHtml(claim.toName)} to check bank app & confirm</span>`;
+    } else {
+      actionsHtml = `<span class="claim-status-pill">⏳ Awaiting ${escapeHtml(claim.toName)}'s verification</span>`;
+    }
+
+    return `
+      <div class="claim-card">
+        <div class="claim-main-info">
+          <div class="claim-avatar-pair">
+            <div class="avatar-badge" style="width:30px; height:30px; font-size:12px; background-color:${fromMember.color || '#F43F5E'}">
+              ${escapeHtml(fromMember.name.charAt(0).toUpperCase())}
+            </div>
+            <span style="margin: 0 4px; color: var(--text-muted); font-size:12px;">➔</span>
+            <div class="avatar-badge" style="width:30px; height:30px; font-size:12px; background-color:${toMember.color || '#10B981'}">
+              ${escapeHtml(toMember.name.charAt(0).toUpperCase())}
+            </div>
+          </div>
+          <div class="claim-desc-block">
+            <div class="claim-parties">
+              <strong>${escapeHtml(claim.fromName)}</strong> claimed payment of <strong>${currency}${claim.amount.toLocaleString("en-IN")}</strong> to <strong>${escapeHtml(claim.toName)}</strong>
+            </div>
+            <div class="claim-time-meta">
+              <span>${claim.date || 'Pending'}</span>
+              <span>•</span>
+              <span>${escapeHtml(claim.note || 'UPI Transfer')}</span>
+            </div>
+          </div>
+        </div>
+        <div class="claim-actions">
+          <span class="claim-amount-pill">${currency}${claim.amount.toLocaleString("en-IN")}</span>
+          ${actionsHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function confirmSettlementClaim(claimId) {
+  try {
+    const res = await authFetch("/api/settlements/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claimId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to confirm settlement");
+
+    if (typeof confetti === "function") {
+      confetti({
+        particleCount: 80,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ["#10B981", "#6366F1", "#F59E0B"]
+      });
+    }
+
+    showToast("Payment verified & confirmed! Debt cleared. 🎉");
+    fetchTripData();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function rejectSettlementClaim(claimId) {
+  if (!confirm("Reject this payment claim? The debt will remain active.")) return;
+  try {
+    const res = await authFetch("/api/settlements/reject-claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claimId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to reject claim");
+
+    showToast("Claim rejected. Debt remains active.");
+    fetchTripData();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
 function renderSettlements() {
   const container = document.getElementById("settlements-container");
   const { settlements, totalSpent } = appState.analytics;
@@ -153,10 +408,32 @@ function renderSettlements() {
   }
 
   const memberMap = new Map(members.map(m => [m.id, m]));
+  const claims = appState.settlementClaims || [];
 
   container.innerHTML = settlements.map(s => {
     const fromMember = memberMap.get(s.fromId) || { name: s.fromName, color: "#F43F5E" };
     const toMember = memberMap.get(s.toId) || { name: s.toName, color: "#10B981" };
+
+    const isReceiver = currentUser && currentUser.id === s.toId;
+    const isAdmin = currentUser && (currentUser.role === "admin" || (currentUser.name || "").toLowerCase() === "bala");
+    const isDebtor = currentUser && currentUser.id === s.fromId;
+
+    const pendingClaim = claims.find(c => c.fromId === s.fromId && c.toId === s.toId);
+
+    let actionBtnHtml = "";
+    if (isReceiver || isAdmin) {
+      actionBtnHtml = `
+        <button class="btn-upi-pay" style="background:var(--accent-emerald);" onclick="openUpiPaymentModal('${s.fromId}', '${s.toId}', ${s.amount})" title="Direct settlement / Confirm money received">
+          <span>✓</span> Confirm / Settle
+        </button>
+      `;
+    } else {
+      actionBtnHtml = `
+        <button class="btn-upi-pay" onclick="openUpiPaymentModal('${s.fromId}', '${s.toId}', ${s.amount})" title="Pay via UPI & Send Claim">
+          <span>⚡</span> Pay & Claim
+        </button>
+      `;
+    }
 
     return `
       <div class="settlement-flow-card">
@@ -194,11 +471,10 @@ function renderSettlements() {
           <div class="settlement-amount-display">
             <div class="settlement-val">${currency}${s.amount.toLocaleString("en-IN")}</div>
             <div class="settlement-sub">Direct Transfer</div>
+            ${pendingClaim ? `<div class="claim-status-pill" style="margin-top:4px;">⏳ Claim Sent (₹${pendingClaim.amount})</div>` : ''}
           </div>
 
-          <button class="btn-upi-pay" onclick="openUpiPaymentModal('${s.fromId}', '${s.toId}', ${s.amount})" title="Pay via UPI or Scan QR">
-            <span>⚡</span> Pay via UPI
-          </button>
+          ${actionBtnHtml}
         </div>
       </div>
     `;
@@ -228,7 +504,7 @@ function renderSettledHistory() {
           <div class="settled-history-title">
             <strong>${escapeHtml(item.fromName)}</strong> paid <strong>${escapeHtml(item.toName)}</strong>
           </div>
-          <div class="settled-history-date">${item.date || "Completed"}</div>
+          <div class="settled-history-date">${item.date || "Completed"}${item.confirmedBy ? ` • Verified by ${escapeHtml(item.confirmedBy)}` : ''}</div>
         </div>
       </div>
       <div class="settled-history-right">
@@ -286,6 +562,9 @@ function openUpiPaymentModal(fromId, toId, amount) {
     upiId: toMember.upi || ""
   };
 
+  const isReceiver = currentUser && currentUser.id === toId;
+  const isAdmin = currentUser && (currentUser.role === "admin" || (currentUser.name || "").toLowerCase() === "bala");
+
   document.getElementById("upi-modal-title").textContent = `Settle with ${toMember.name}`;
   document.getElementById("upi-modal-recipient-name").textContent = `Pay to ${toMember.name}`;
 
@@ -301,6 +580,20 @@ function openUpiPaymentModal(fromId, toId, amount) {
   const amtInput = document.getElementById("upi-modal-amount-input");
   amtInput.value = amount;
   document.getElementById("upi-amount-hint").textContent = `Calculated due: ${currency}${amount.toLocaleString("en-IN")} (You can edit if paying partially)`;
+
+  const hintBox = document.getElementById("settle-modal-role-hint");
+  const settleBtnIcon = document.getElementById("btn-settle-icon");
+  const settleBtnLabel = document.getElementById("btn-settle-label");
+
+  if (isReceiver || isAdmin) {
+    if (hintBox) hintBox.innerHTML = `<span>⚡ As the receiver (or Admin Bala), you can directly confirm receiving this payment (cash / verified bank transfer).</span>`;
+    if (settleBtnIcon) settleBtnIcon.textContent = "✓";
+    if (settleBtnLabel) settleBtnLabel.textContent = "Confirm Money Received (Direct Settle)";
+  } else {
+    if (hintBox) hintBox.innerHTML = `<span>🛡️ <strong>Anti-Abuse Handshake:</strong> Tapping below sends a payment claim to <strong>${escapeHtml(toMember.name)}</strong>. Once they check their bank/UPI app, they will confirm to clear your debt.</span>`;
+    if (settleBtnIcon) settleBtnIcon.textContent = "📤";
+    if (settleBtnLabel) settleBtnLabel.textContent = `I Have Paid (Send Claim to ${escapeHtml(toMember.name)})`;
+  }
 
   function refreshUpiQrAndLinks() {
     const curAmt = parseFloat(amtInput.value) || 0;
@@ -398,28 +691,47 @@ async function markActivePaymentSettled() {
     return;
   }
 
-  try {
-    const res = await fetch("/api/settlements/mark-paid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromId, toId, amount })
-    });
+  const isReceiver = currentUser && currentUser.id === toId;
+  const isAdmin = currentUser && (currentUser.role === "admin" || (currentUser.name || "").toLowerCase() === "bala");
 
-    if (!res.ok) throw new Error("Could not record settlement");
+  try {
+    let res;
+    if (isReceiver || isAdmin) {
+      // Receiver directly confirms receipt
+      res = await authFetch("/api/settlements/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromId, toId, amount })
+      });
+    } else {
+      // Debtor creates a claim
+      res = await authFetch("/api/settlements/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromId, toId, amount, note: "Paid via UPI / QR" })
+      });
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Could not record settlement");
 
     document.getElementById("modal-upi-qr").classList.remove("open");
     activeUpiPayment = null;
 
-    if (typeof confetti === "function") {
-      confetti({
-        particleCount: 80,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ["#10B981", "#6366F1", "#F59E0B"]
-      });
+    if (isReceiver || isAdmin) {
+      if (typeof confetti === "function") {
+        confetti({
+          particleCount: 80,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ["#10B981", "#6366F1", "#F59E0B"]
+        });
+      }
+      showToast(`Marked: ${fromName} paid ${toName} ₹${amount.toLocaleString("en-IN")}! 🎉`);
+    } else {
+      showToast(`Payment claim sent! Waiting for ${toName} to confirm receipt. ⏳`);
     }
 
-    showToast(`Marked: ${fromName} paid ${toName} ₹${amount.toLocaleString("en-IN")}! 🎉`);
     fetchTripData();
   } catch (err) {
     showToast("Error: " + err.message, true);
@@ -429,12 +741,13 @@ async function markActivePaymentSettled() {
 async function deleteSettlementHistory(id) {
   if (!confirm("Undo this completed payment?")) return;
   try {
-    const res = await fetch(`/api/settlements/history/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Failed to undo");
+    const res = await authFetch(`/api/settlements/history/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to undo settlement");
     showToast("Payment undone");
     fetchTripData();
   } catch (err) {
-    showToast("Error undoing settlement", true);
+    showToast(err.message, true);
   }
 }
 
@@ -478,6 +791,22 @@ function renderExpensesFeed() {
       .slice(0, 3)
       .join(", ") + (splitCount > 3 ? ` +${splitCount - 3} others` : "");
 
+    const canDelete = currentUser && (
+      currentUser.role === "admin" ||
+      (currentUser.name || "").toLowerCase() === "bala" ||
+      currentUser.id === exp.paidBy
+    );
+
+    const deleteBtnHtml = canDelete ? `
+      <button class="btn-trash-icon" onclick="deleteExpense('${exp.id}')" title="Delete expense">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </button>
+    ` : `
+      <div style="opacity:0.3; display:flex; align-items:center; padding:6px; cursor:help;" title="Protected: Only ${escapeHtml(payer.name)} or Admin Bala can delete this bill">
+        🔒
+      </div>
+    `;
+
     return `
       <div class="expense-row-card">
         <div class="expense-left-cluster">
@@ -500,9 +829,7 @@ function renderExpensesFeed() {
             <div class="expense-item-share">${currency}${Math.round(exp.amount / (splitCount || 1))}/person</div>
           </div>
 
-          <button class="btn-trash-icon" onclick="deleteExpense('${exp.id}')" title="Delete expense">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          </button>
+          ${deleteBtnHtml}
         </div>
       </div>
     `;
@@ -859,13 +1186,14 @@ function setupFormListeners() {
     };
 
     try {
-      const res = await fetch("/api/expenses", {
+      const res = await authFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("Could not save expense");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save expense");
 
       document.getElementById("modal-expense").classList.remove("open");
       document.getElementById("form-add-expense").reset();
@@ -899,13 +1227,14 @@ function setupFormListeners() {
     if (!name) return;
 
     try {
-      const res = await fetch("/api/members", {
+      const res = await authFetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, upi })
       });
 
-      if (!res.ok) throw new Error("Could not add member");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not add member");
 
       nameInput.value = "";
       upiInput.value = "";
@@ -922,12 +1251,13 @@ async function deleteExpense(id) {
   if (!confirm("Are you sure you want to remove this expense?")) return;
 
   try {
-    const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Failed");
+    const res = await authFetch(`/api/expenses/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to remove expense");
     showToast("Expense removed");
     fetchTripData();
   } catch (err) {
-    showToast("Error deleting", true);
+    showToast("Error: " + err.message, true);
   }
 }
 
@@ -940,7 +1270,7 @@ async function deleteMember(id, event) {
   if (!confirm("Are you sure you want to remove this member?")) return;
 
   try {
-    const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
+    const res = await authFetch(`/api/members/${id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {
       showToast(data.error || "Cannot delete member", true);
@@ -1096,6 +1426,204 @@ function setupModals() {
       cb.checked = false;
       handleSplitCheckboxChange(cb);
     });
+  });
+}
+
+// ======================== AUTH & PROFILE MODALS ========================
+function setupAuthModals() {
+  // Eye toggle for password visibility
+  const toggleBtn = document.getElementById("btn-toggle-login-pw");
+  const pwInput = document.getElementById("login-password");
+  if (toggleBtn && pwInput) {
+    toggleBtn.addEventListener("click", () => {
+      const isPw = pwInput.type === "password";
+      pwInput.type = isPw ? "text" : "password";
+      toggleBtn.textContent = isPw ? "Hide" : "Show";
+    });
+  }
+
+  // Profile Dropdown Toggle
+  const profileBtn = document.getElementById("btn-user-profile-menu");
+  const dropdown = document.getElementById("user-dropdown-menu");
+  if (profileBtn && dropdown) {
+    profileBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("open");
+    });
+    document.addEventListener("click", (e) => {
+      if (!dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+        dropdown.classList.remove("open");
+      }
+    });
+  }
+
+  // Login Form
+  const formLogin = document.getElementById("form-auth-login");
+  if (formLogin) {
+    formLogin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const memberId = document.getElementById("login-member-select").value;
+      const password = document.getElementById("login-password").value;
+      const submitBtn = document.getElementById("btn-submit-login");
+
+      if (!memberId || !password) {
+        showToast("Please enter your password", true);
+        return;
+      }
+
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Login failed");
+
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem("knr_auth_token", authToken);
+        localStorage.setItem("knr_auth_user", JSON.stringify(currentUser));
+
+        document.getElementById("modal-auth-login").classList.remove("open");
+        formLogin.reset();
+
+        updateNavUserPill();
+        renderAll();
+
+        if (typeof confetti === "function") {
+          confetti({
+            particleCount: 70,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ["#6366F1", "#10B981", "#F59E0B"]
+          });
+        }
+
+        showToast(`Welcome back, ${currentUser.name}! 🚖🌙`);
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Close Login Modal (if allowed)
+  document.getElementById("btn-close-login-modal")?.addEventListener("click", () => {
+    document.getElementById("modal-auth-login").classList.remove("open");
+  });
+
+  // Switch Account Menu Item
+  document.getElementById("btn-menu-switch-user")?.addEventListener("click", () => {
+    dropdown?.classList.remove("open");
+    openLoginModal(true);
+  });
+
+  // Logout Menu Item
+  document.getElementById("btn-menu-logout")?.addEventListener("click", async () => {
+    dropdown?.classList.remove("open");
+    if (authToken) {
+      try {
+        await authFetch("/api/auth/logout", { method: "POST" });
+      } catch (e) {}
+    }
+    authToken = "";
+    currentUser = null;
+    localStorage.removeItem("knr_auth_token");
+    localStorage.removeItem("knr_auth_user");
+    updateNavUserPill();
+    renderAll();
+    showToast("Logged out. See you soon! 👋");
+    openLoginModal(false);
+  });
+
+  // Change Password Modal
+  const changePwModal = document.getElementById("modal-change-password");
+  document.getElementById("btn-menu-change-pw")?.addEventListener("click", () => {
+    dropdown?.classList.remove("open");
+    if (!currentUser) {
+      openLoginModal(false);
+      return;
+    }
+    changePwModal.classList.add("open");
+    document.getElementById("pw-current")?.focus();
+  });
+
+  document.getElementById("btn-close-change-pw-modal")?.addEventListener("click", () => {
+    changePwModal.classList.remove("open");
+  });
+  document.getElementById("btn-cancel-change-pw")?.addEventListener("click", () => {
+    changePwModal.classList.remove("open");
+  });
+
+  document.getElementById("form-change-password")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const oldPassword = document.getElementById("pw-current").value;
+    const newPassword = document.getElementById("pw-new").value;
+    const confirmPassword = document.getElementById("pw-confirm").value;
+
+    if (newPassword !== confirmPassword) {
+      showToast("New passwords do not match!", true);
+      return;
+    }
+
+    try {
+      const res = await authFetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPassword, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to change password");
+
+      changePwModal.classList.remove("open");
+      document.getElementById("form-change-password").reset();
+      showToast("Password updated successfully! 🔑");
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  });
+
+  // Admin Reset Modal
+  const adminResetModal = document.getElementById("modal-admin-reset-pw");
+  document.getElementById("btn-menu-admin-reset")?.addEventListener("click", () => {
+    dropdown?.classList.remove("open");
+    const sel = document.getElementById("admin-reset-member-select");
+    if (sel) {
+      sel.innerHTML = appState.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
+    }
+    adminResetModal.classList.add("open");
+  });
+
+  document.getElementById("btn-close-admin-reset-modal")?.addEventListener("click", () => {
+    adminResetModal.classList.remove("open");
+  });
+  document.getElementById("btn-cancel-admin-reset")?.addEventListener("click", () => {
+    adminResetModal.classList.remove("open");
+  });
+
+  document.getElementById("form-admin-reset-pw")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const memberId = document.getElementById("admin-reset-member-select").value;
+    const newPassword = document.getElementById("admin-reset-new-pw").value;
+
+    try {
+      const res = await authFetch("/api/auth/admin-reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset password");
+
+      adminResetModal.classList.remove("open");
+      showToast(data.message || "Password reset successfully! ⚡");
+    } catch (err) {
+      showToast(err.message, true);
+    }
   });
 }
 

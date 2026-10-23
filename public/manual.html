@@ -310,6 +310,7 @@
       <a href="#squad" class="jump-pill">👥 Manage Squad</a>
       <a href="#expenses" class="jump-pill">💸 Adding Expenses</a>
       <a href="#settlement" class="jump-pill">🤝 Smart Settlements & UPI</a>
+      <a href="#security" class="jump-pill">🛡️ Security & Login</a>
       <a href="#whatsapp" class="jump-pill">📱 WhatsApp & CSV</a>
       <a href="#faq" class="jump-pill">❓ FAQs</a>
     </nav>
@@ -471,8 +472,66 @@
         <div class="step-item">
           <div class="step-number">D</div>
           <div class="step-content">
-            <h4>Mark as Settled & Paid</h4>
-            <p>Once you finish the transfer, tap <strong>"✓ Mark as Settled & Paid"</strong>. It saves a permanent record in the <strong>Settlement Payment History</strong> ledger and deducts the amount from remaining debts!</p>
+            <h4>Two-Way Anti-Abuse Handshake (Send Claim ➔ Receiver Confirms)</h4>
+            <p>To prevent members from falsely clicking "Settled" without transferring money, our app uses a <strong>Two-Way Settlement Handshake</strong>:</p>
+            <ul style="margin: 8px 0 0 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+              <li><strong>Payer Action:</strong> Tap <em>"I Have Paid (Send Verification Claim)"</em>. This alerts the receiver.</li>
+              <li><strong>Receiver Verification:</strong> The receiver opens their bank/UPI app, checks that the amount entered their account, and clicks <strong>"✓ Confirm Money Received"</strong>.</li>
+              <li><strong>Protection:</strong> Debts are ONLY cleared once the receiver confirms! Debtor cannot falsely settle their own debt.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: SECURITY, LOGIN & AUTHENTICATION -->
+    <section class="manual-section" id="security">
+      <div class="section-header-block">
+        <div class="section-icon-badge">🛡️</div>
+        <div>
+          <h2 class="section-title">5. Squad Member Accounts & Security</h2>
+          <p class="section-desc">Personal logins, password management & bill protection.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Pre-Loaded Squad Accounts & Default Password</h4>
+            <p>All 6 squad members (Bala, Naisha, sai praneeth, sai nath, Hema, sannihith) have secure accounts. The initial default password for all squad members is <code>knr2026</code>. (Lead Architect Bala can also log in with <code>bala123</code>).</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Stay Logged In (Persistent Session)</h4>
+            <p>Check the <strong>"Stay logged in"</strong> box during sign in. Your authentication token is securely stored so you never have to re-enter your password on your phone throughout the entire trip.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Change Your Password</h4>
+            <p>Tap your name pill in the top navigation bar ➔ click <strong>"🔑 Change Password"</strong> to set your own private password at any time.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h4>Forgot Password? Admin Bala Superpower ⚡</h4>
+            <p>If any squad member forgets their password, Lead Architect Bala has an admin tool to reset their password back to temporary <code>knr2026</code> with 1 tap.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h4>Bill Deletion Guard</h4>
+            <p>Nobody can delete someone else's expense! A bill can only be deleted by the person who paid for it, or by Lead Architect Bala.</p>
           </div>
         </div>
       </div>

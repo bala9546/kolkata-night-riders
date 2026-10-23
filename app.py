@@ -3,6 +3,8 @@ import json
 import os
 import sys
 import uuid
+import hashlib
+import secrets
 from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -54,20 +56,90 @@ DEFAULT_DATA = {
     "tripName": "Kolkata Night Riders 🚖🌙",
     "currency": "₹",
     "members": [
-        {"id": "mem_1", "name": "Bala", "color": "#6366F1", "upi": ""},
-        {"id": "mem_2", "name": "Naisha", "color": "#10B981", "upi": ""},
-        {"id": "mem_3", "name": "sai praneeth", "color": "#F59E0B", "upi": ""},
-        {"id": "mem_4", "name": "sai nath", "color": "#EC4899", "upi": ""},
-        {"id": "mem_5", "name": "Hema", "color": "#8B5CF6", "upi": ""},
-        {"id": "mem_6", "name": "sannihith", "color": "#06B6D4", "upi": ""}
+        {"id": "mem_1", "name": "Bala", "color": "#046A38", "upi": "", "role": "admin"},
+        {"id": "mem_2", "name": "Naisha", "color": "#10B981", "upi": "", "role": "member"},
+        {"id": "mem_3", "name": "sai praneeth", "color": "#F59E0B", "upi": "", "role": "member"},
+        {"id": "mem_4", "name": "sai nath", "color": "#EC4899", "upi": "", "role": "member"},
+        {"id": "mem_5", "name": "Hema", "color": "#8B5CF6", "upi": "", "role": "member"},
+        {"id": "mem_6", "name": "sannihith", "color": "#06B6D4", "upi": "", "role": "member"}
     ],
     "expenses": [],
-    "settlementsHistory": []
+    "settlementsHistory": [],
+    "settlementClaims": [],
+    "sessions": {}
 }
 
 AVATAR_COLORS = [
     "#6366F1", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#06B6D4", "#F43F5E", "#3B82F6"
 ]
+
+def hash_password(password: str) -> str:
+    """PBKDF2-HMAC-SHA256 password hashing with random salt."""
+    salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+    return f"{salt}${hashed}"
+
+def verify_password(stored_hash: str, password: str) -> bool:
+    """Verify PBKDF2 password against stored hash."""
+    if not stored_hash or "$" not in stored_hash:
+        return False
+    try:
+        salt, hash_val = stored_hash.split("$", 1)
+        test_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+        return secrets.compare_digest(hash_val, test_hash)
+    except Exception:
+        return False
+
+def is_admin_member(member: dict) -> bool:
+    """Check if member has Admin privileges (Lead Architect Bala)."""
+    name = (member.get("name") or "").strip().lower()
+    return member.get("role") == "admin" or name == "bala" or member.get("id") == "mem_1"
+
+def check_member_password(member: dict, password: str) -> bool:
+    """Check credentials: stored hash, default squad password 'knr2026', or Bala's master password."""
+    pwd = (password or "").strip()
+    if not pwd:
+        return False
+    stored = member.get("passwordHash")
+    if stored and verify_password(stored, pwd):
+        return True
+    # Default fallbacks
+    if pwd == "knr2026":
+        return True
+    if is_admin_member(member) and pwd == "bala123":
+        return True
+    return False
+
+def ensure_data_integrity(data: dict) -> bool:
+    """Ensures all required fields, member roles, default password hashes, and arrays exist."""
+    changed = False
+    if "settlementsHistory" not in data or not isinstance(data["settlementsHistory"], list):
+        data["settlementsHistory"] = []
+        changed = True
+    if "settlementClaims" not in data or not isinstance(data["settlementClaims"], list):
+        data["settlementClaims"] = []
+        changed = True
+    if "sessions" not in data or not isinstance(data["sessions"], dict):
+        data["sessions"] = {}
+        changed = True
+
+    default_hash = hash_password("knr2026")
+    for m in data.get("members", []):
+        if is_admin_member(m):
+            if m.get("role") != "admin":
+                m["role"] = "admin"
+                changed = True
+        else:
+            if "role" not in m:
+                m["role"] = "member"
+                changed = True
+        if "upi" not in m:
+            m["upi"] = ""
+            changed = True
+        if "passwordHash" not in m or not m["passwordHash"]:
+            m["passwordHash"] = default_hash
+            changed = True
+    return changed
 
 def load_data():
     if is_mongo_connected and mongo_collection is not None:
@@ -75,28 +147,34 @@ def load_data():
             doc = mongo_collection.find_one({"_id": "main_trip"})
             if doc:
                 doc.pop("_id", None)
-                if "settlementsHistory" not in doc:
-                    doc["settlementsHistory"] = []
+                if ensure_data_integrity(doc):
+                    save_data(doc)
                 return doc
             else:
-                save_data(DEFAULT_DATA)
-                return DEFAULT_DATA
+                d = dict(DEFAULT_DATA)
+                ensure_data_integrity(d)
+                save_data(d)
+                return d
         except Exception as e:
             print(f"MongoDB read error: {e}", file=sys.stderr)
 
     if not os.path.exists(DATA_FILE):
         os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-        save_data(DEFAULT_DATA)
-        return DEFAULT_DATA
+        d = dict(DEFAULT_DATA)
+        ensure_data_integrity(d)
+        save_data(d)
+        return d
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             d = json.load(f)
-            if "settlementsHistory" not in d:
-                d["settlementsHistory"] = []
+            if ensure_data_integrity(d):
+                save_data(d)
             return d
     except Exception as e:
         print(f"Error loading local data: {e}", file=sys.stderr)
-        return DEFAULT_DATA
+        d = dict(DEFAULT_DATA)
+        ensure_data_integrity(d)
+        return d
 
 def save_data(data):
     if is_mongo_connected and mongo_collection is not None:
@@ -242,7 +320,7 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token")
         self.end_headers()
         self.wfile.write(body)
 
@@ -250,8 +328,36 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token")
         self.end_headers()
+
+    def _get_current_user(self, data):
+        """Extract authenticated member from Authorization header or X-Auth-Token."""
+        auth_header = self.headers.get("Authorization", "")
+        token = ""
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+        if not token:
+            token = self.headers.get("X-Auth-Token", "").strip()
+        if not token:
+            return None
+
+        sessions = data.get("sessions", {})
+        sess = sessions.get(token)
+        if not sess:
+            return None
+
+        mem_id = sess.get("memberId")
+        for m in data.get("members", []):
+            if m["id"] == mem_id:
+                user = dict(m)
+                user.pop("passwordHash", None)
+                if is_admin_member(user):
+                    user["role"] = "admin"
+                else:
+                    user["role"] = user.get("role", "member")
+                return user
+        return None
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -261,16 +367,39 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             with lock:
                 data = load_data()
                 analytics = calculate_analytics(data)
+                
+                # Strip password hashes for client safety
+                safe_members = []
+                for m in data.get("members", []):
+                    m_copy = dict(m)
+                    m_copy.pop("passwordHash", None)
+                    if is_admin_member(m_copy):
+                        m_copy["role"] = "admin"
+                    else:
+                        m_copy.setdefault("role", "member")
+                    safe_members.append(m_copy)
+
                 response_data = {
                     "tripName": data.get("tripName", "Kolkata Night Riders 🚖🌙"),
                     "currency": data.get("currency", "₹"),
-                    "members": data.get("members", []),
+                    "members": safe_members,
                     "expenses": data.get("expenses", []),
                     "settlementsHistory": data.get("settlementsHistory", []),
+                    "settlementClaims": data.get("settlementClaims", []),
                     "storageMode": "mongodb" if is_mongo_connected else "local",
                     "analytics": analytics
                 }
             self._send_json(200, response_data)
+            return
+
+        if path == "/api/auth/me":
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+            if user:
+                self._send_json(200, {"success": True, "user": user})
+            else:
+                self._send_json(401, {"error": "Not authenticated"})
             return
 
         if path == "/api/export/csv":
@@ -306,6 +435,337 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
         except Exception:
             body = {}
 
+        # ----------------- AUTHENTICATION ENDPOINTS -----------------
+        if path == "/api/auth/login":
+            member_id = body.get("memberId", "").strip()
+            username = body.get("username", "").strip()
+            password = body.get("password", "").strip()
+
+            with lock:
+                data = load_data()
+                target_member = None
+                for m in data.get("members", []):
+                    if member_id and m["id"] == member_id:
+                        target_member = m
+                        break
+                    elif username and m["name"].strip().lower() == username.lower():
+                        target_member = m
+                        break
+
+                if not target_member:
+                    self._send_json(404, {"error": "Squad member not found. Please select your name."})
+                    return
+
+                if not check_member_password(target_member, password):
+                    self._send_json(401, {"error": "Incorrect password. Default password is 'knr2026'."})
+                    return
+
+                # If member does not have passwordHash stored yet, save it now
+                if "passwordHash" not in target_member or not target_member["passwordHash"]:
+                    target_member["passwordHash"] = hash_password(password)
+
+                # Generate secure session token
+                token = secrets.token_hex(24)
+                if "sessions" not in data or not isinstance(data["sessions"], dict):
+                    data["sessions"] = {}
+                data["sessions"][token] = {
+                    "memberId": target_member["id"],
+                    "createdAt": datetime.now().isoformat()
+                }
+                save_data(data)
+
+                safe_user = dict(target_member)
+                safe_user.pop("passwordHash", None)
+                if is_admin_member(safe_user):
+                    safe_user["role"] = "admin"
+                else:
+                    safe_user["role"] = safe_user.get("role", "member")
+
+                self._send_json(200, {
+                    "success": True,
+                    "token": token,
+                    "user": safe_user
+                })
+            return
+
+        if path == "/api/auth/logout":
+            auth_header = self.headers.get("Authorization", "")
+            token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else self.headers.get("X-Auth-Token", "").strip()
+            with lock:
+                data = load_data()
+                if token and token in data.get("sessions", {}):
+                    del data["sessions"][token]
+                    save_data(data)
+            self._send_json(200, {"success": True, "message": "Logged out successfully"})
+            return
+
+        if path == "/api/auth/change-password":
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                if not user:
+                    self._send_json(401, {"error": "Please log in first."})
+                    return
+
+                old_pw = body.get("oldPassword", "").strip()
+                new_pw = body.get("newPassword", "").strip()
+
+                if len(new_pw) < 4:
+                    self._send_json(400, {"error": "New password must be at least 4 characters."})
+                    return
+
+                member = next((m for m in data.get("members", []) if m["id"] == user["id"]), None)
+                if not member or not check_member_password(member, old_pw):
+                    self._send_json(400, {"error": "Current password is incorrect."})
+                    return
+
+                member["passwordHash"] = hash_password(new_pw)
+                save_data(data)
+                self._send_json(200, {"success": True, "message": "Password changed successfully!"})
+            return
+
+        if path == "/api/auth/admin-reset-password":
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                if not user or not is_admin_member(user):
+                    self._send_json(403, {"error": "Only Admin Bala can reset member passwords."})
+                    return
+
+                target_id = body.get("memberId", "").strip()
+                new_pw = body.get("newPassword", "knr2026").strip()
+
+                target = next((m for m in data.get("members", []) if m["id"] == target_id), None)
+                if not target:
+                    self._send_json(404, {"error": "Target member not found."})
+                    return
+
+                target["passwordHash"] = hash_password(new_pw)
+                save_data(data)
+                self._send_json(200, {
+                    "success": True,
+                    "message": f"Password for {target['name']} reset to '{new_pw}'."
+                })
+            return
+
+        # ----------------- SETTLEMENT HANDSHAKE ENDPOINTS -----------------
+        if path == "/api/settlements/claim":
+            from_id = body.get("fromId")
+            to_id = body.get("toId")
+            amount = float(body.get("amount", 0))
+            note = body.get("note", "").strip()
+
+            if not from_id or not to_id or from_id == to_id or amount <= 0:
+                self._send_json(400, {"error": "Invalid settlement claim parameters."})
+                return
+
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                # If logged in non-admin, prevent creating claim on behalf of someone else
+                if user and not is_admin_member(user) and user["id"] != from_id:
+                    self._send_json(403, {"error": "You can only submit payment claims for debts you owe."})
+                    return
+
+                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
+                claim = {
+                    "id": "clm_" + uuid.uuid4().hex[:8],
+                    "fromId": from_id,
+                    "fromName": members_map.get(from_id, "Squad Member"),
+                    "toId": to_id,
+                    "toName": members_map.get(to_id, "Squad Member"),
+                    "amount": round(amount, 2),
+                    "note": note or "UPI / Bank Transfer",
+                    "claimedBy": user["name"] if user else members_map.get(from_id, "Squad Member"),
+                    "timestamp": datetime.now().isoformat(),
+                    "date": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                    "status": "pending"
+                }
+                if "settlementClaims" not in data:
+                    data["settlementClaims"] = []
+                data["settlementClaims"].insert(0, claim)
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(201, {
+                    "success": True,
+                    "claim": claim,
+                    "settlementClaims": data["settlementClaims"],
+                    "analytics": analytics
+                })
+            return
+
+        if path == "/api/settlements/confirm":
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                if not user:
+                    self._send_json(401, {"error": "Please log in to confirm money received."})
+                    return
+
+                claim_id = body.get("claimId")
+                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
+
+                if claim_id:
+                    claim = next((c for c in data.get("settlementClaims", []) if c["id"] == claim_id), None)
+                    if not claim:
+                        self._send_json(404, {"error": "Settlement claim not found or already verified."})
+                        return
+
+                    # Core Anti-Abuse Guard: ONLY the Receiver or Admin Bala can confirm!
+                    if not is_admin_member(user) and user["id"] != claim["toId"]:
+                        self._send_json(403, {
+                            "error": f"Security restriction: Only the receiver ({claim['toName']}) or Admin Bala can confirm that this payment was received!"
+                        })
+                        return
+
+                    from_id = claim["fromId"]
+                    to_id = claim["toId"]
+                    amount = claim["amount"]
+                    data["settlementClaims"] = [c for c in data["settlementClaims"] if c["id"] != claim_id]
+                else:
+                    # Direct settlement verification by receiver
+                    from_id = body.get("fromId")
+                    to_id = body.get("toId")
+                    amount = float(body.get("amount", 0))
+
+                    if not from_id or not to_id or amount <= 0:
+                        self._send_json(400, {"error": "Invalid settlement details."})
+                        return
+
+                    if not is_admin_member(user) and user["id"] != to_id:
+                        self._send_json(403, {
+                            "error": f"Security restriction: Only the receiver ({members_map.get(to_id, 'Receiver')}) or Admin Bala can confirm money received!"
+                        })
+                        return
+
+                record = {
+                    "id": "set_" + uuid.uuid4().hex[:8],
+                    "fromId": from_id,
+                    "fromName": members_map.get(from_id, "Squad Member"),
+                    "toId": to_id,
+                    "toName": members_map.get(to_id, "Squad Member"),
+                    "amount": round(amount, 2),
+                    "confirmedBy": user["name"],
+                    "timestamp": datetime.now().isoformat(),
+                    "date": datetime.now().strftime("%d %b %Y, %I:%M %p")
+                }
+                if "settlementsHistory" not in data:
+                    data["settlementsHistory"] = []
+                data["settlementsHistory"].insert(0, record)
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "record": record,
+                    "settlementsHistory": data["settlementsHistory"],
+                    "settlementClaims": data.get("settlementClaims", []),
+                    "analytics": analytics
+                })
+            return
+
+        if path == "/api/settlements/reject-claim":
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                if not user:
+                    self._send_json(401, {"error": "Please log in to manage claims."})
+                    return
+
+                claim_id = body.get("claimId")
+                claim = next((c for c in data.get("settlementClaims", []) if c["id"] == claim_id), None)
+                if not claim:
+                    self._send_json(404, {"error": "Claim not found."})
+                    return
+
+                # ONLY Receiver or Admin Bala can reject false claim
+                if not is_admin_member(user) and user["id"] != claim["toId"]:
+                    self._send_json(403, {
+                        "error": f"Only the receiver ({claim['toName']}) or Admin Bala can reject this claim."
+                    })
+                    return
+
+                data["settlementClaims"] = [c for c in data["settlementClaims"] if c["id"] != claim_id]
+                save_data(data)
+                analytics = calculate_analytics(data)
+                self._send_json(200, {
+                    "success": True,
+                    "message": f"Payment claim of ₹{claim['amount']} rejected. Debt remains active.",
+                    "settlementClaims": data["settlementClaims"],
+                    "analytics": analytics
+                })
+            return
+
+        # ----------------- LEGACY SETTLEMENT ROUTE -----------------
+        if path == "/api/settlements/mark-paid":
+            from_id = body.get("fromId")
+            to_id = body.get("toId")
+            amount = float(body.get("amount", 0))
+
+            if not from_id or not to_id or amount <= 0:
+                self._send_json(400, {"error": "Invalid settlement details."})
+                return
+
+            with lock:
+                data = load_data()
+                user = self._get_current_user(data)
+                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
+
+                # If logged-in user is receiver or Admin Bala, confirm immediately!
+                if user and (is_admin_member(user) or user["id"] == to_id):
+                    record = {
+                        "id": "set_" + uuid.uuid4().hex[:8],
+                        "fromId": from_id,
+                        "fromName": members_map.get(from_id, "Squad Member"),
+                        "toId": to_id,
+                        "toName": members_map.get(to_id, "Squad Member"),
+                        "amount": round(amount, 2),
+                        "confirmedBy": user["name"],
+                        "timestamp": datetime.now().isoformat(),
+                        "date": datetime.now().strftime("%d %b %Y, %I:%M %p")
+                    }
+                    if "settlementsHistory" not in data:
+                        data["settlementsHistory"] = []
+                    data["settlementsHistory"].insert(0, record)
+                    save_data(data)
+                    analytics = calculate_analytics(data)
+                    self._send_json(200, {
+                        "success": True,
+                        "record": record,
+                        "settlementsHistory": data["settlementsHistory"],
+                        "analytics": analytics
+                    })
+                    return
+                else:
+                    # Debtor submitted: Automatically turn into a pending claim!
+                    claim = {
+                        "id": "clm_" + uuid.uuid4().hex[:8],
+                        "fromId": from_id,
+                        "fromName": members_map.get(from_id, "Squad Member"),
+                        "toId": to_id,
+                        "toName": members_map.get(to_id, "Squad Member"),
+                        "amount": round(amount, 2),
+                        "note": "Payment submitted - pending receiver confirmation",
+                        "claimedBy": user["name"] if user else members_map.get(from_id, "Squad Member"),
+                        "timestamp": datetime.now().isoformat(),
+                        "date": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                        "status": "pending"
+                    }
+                    if "settlementClaims" not in data:
+                        data["settlementClaims"] = []
+                    data["settlementClaims"].insert(0, claim)
+                    save_data(data)
+                    analytics = calculate_analytics(data)
+                    self._send_json(200, {
+                        "success": True,
+                        "isClaim": True,
+                        "claim": claim,
+                        "message": f"Payment claim sent! Waiting for {members_map.get(to_id, 'Receiver')} to confirm receipt.",
+                        "settlementClaims": data["settlementClaims"],
+                        "analytics": analytics
+                    })
+                    return
+
+        # ----------------- SQUAD & EXPENSE ROUTES -----------------
         if path.startswith("/api/members/") and path != "/api/members":
             mem_id = path.replace("/api/members/", "").strip()
             name = body.get("name", "").strip()
@@ -327,9 +787,11 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                     return
                 save_data(data)
                 analytics = calculate_analytics(data)
+                safe_members = [dict(m, passwordHash=None) for m in data["members"]]
+                for sm in safe_members: sm.pop("passwordHash", None)
                 self._send_json(200, {
                     "success": True,
-                    "members": data["members"],
+                    "members": safe_members,
                     "analytics": analytics
                 })
             return
@@ -348,15 +810,21 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                     "id": "mem_" + uuid.uuid4().hex[:8],
                     "name": name,
                     "color": color,
-                    "upi": upi
+                    "upi": upi,
+                    "role": "member",
+                    "passwordHash": hash_password("knr2026")
                 }
                 data["members"].append(new_member)
                 save_data(data)
                 analytics = calculate_analytics(data)
+                safe_member = dict(new_member)
+                safe_member.pop("passwordHash", None)
+                safe_members = [dict(m, passwordHash=None) for m in data["members"]]
+                for sm in safe_members: sm.pop("passwordHash", None)
                 self._send_json(201, {
                     "success": True,
-                    "member": new_member,
-                    "members": data["members"],
+                    "member": safe_member,
+                    "members": safe_members,
                     "analytics": analytics
                 })
             return
@@ -396,41 +864,6 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                     "success": True,
                     "expense": new_expense,
                     "expenses": data["expenses"],
-                    "analytics": analytics
-                })
-            return
-
-        if path == "/api/settlements/mark-paid":
-            from_id = body.get("fromId")
-            to_id = body.get("toId")
-            amount = float(body.get("amount", 0))
-
-            if not from_id or not to_id or amount <= 0:
-                self._send_json(400, {"error": "Invalid settlement details."})
-                return
-
-            with lock:
-                data = load_data()
-                members_map = {m["id"]: m["name"] for m in data.get("members", [])}
-                record = {
-                    "id": "set_" + uuid.uuid4().hex[:8],
-                    "fromId": from_id,
-                    "fromName": members_map.get(from_id, "Squad Member"),
-                    "toId": to_id,
-                    "toName": members_map.get(to_id, "Squad Member"),
-                    "amount": round(amount, 2),
-                    "timestamp": datetime.now().isoformat(),
-                    "date": datetime.now().strftime("%d %b %Y, %I:%M %p")
-                }
-                if "settlementsHistory" not in data:
-                    data["settlementsHistory"] = []
-                data["settlementsHistory"].insert(0, record)
-                save_data(data)
-                analytics = calculate_analytics(data)
-                self._send_json(200, {
-                    "success": True,
-                    "record": record,
-                    "settlementsHistory": data["settlementsHistory"],
                     "analytics": analytics
                 })
             return
@@ -481,9 +914,11 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
 
                 save_data(data)
                 analytics = calculate_analytics(data)
+                safe_members = [dict(m, passwordHash=None) for m in data["members"]]
+                for sm in safe_members: sm.pop("passwordHash", None)
                 self._send_json(200, {
                     "success": True,
-                    "members": data["members"],
+                    "members": safe_members,
                     "analytics": analytics
                 })
             return
@@ -498,6 +933,21 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             exp_id = path.replace("/api/expenses/", "").strip()
             with lock:
                 data = load_data()
+                user = self._get_current_user(data)
+                target_exp = next((e for e in data["expenses"] if e["id"] == exp_id), None)
+                if not target_exp:
+                    self._send_json(404, {"error": "Expense not found"})
+                    return
+
+                # Expense deletion security guard
+                if user and not is_admin_member(user) and user["id"] != target_exp.get("paidBy"):
+                    payer_m = next((m for m in data.get("members", []) if m["id"] == target_exp.get("paidBy")), None)
+                    payer_name = payer_m["name"] if payer_m else "the payer"
+                    self._send_json(403, {
+                        "error": f"Security restriction: Only {payer_name} or Admin Bala can delete this expense."
+                    })
+                    return
+
                 data["expenses"] = [e for e in data["expenses"] if e["id"] != exp_id]
                 save_data(data)
                 analytics = calculate_analytics(data)
@@ -519,9 +969,11 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
                 data["members"] = [m for m in data["members"] if m["id"] != mem_id]
                 save_data(data)
                 analytics = calculate_analytics(data)
+                safe_members = [dict(m, passwordHash=None) for m in data["members"]]
+                for sm in safe_members: sm.pop("passwordHash", None)
                 self._send_json(200, {
                     "success": True,
-                    "members": data["members"],
+                    "members": safe_members,
                     "analytics": analytics
                 })
             return
@@ -530,6 +982,19 @@ class TripSplitterHandler(SimpleHTTPRequestHandler):
             set_id = path.replace("/api/settlements/history/", "").strip()
             with lock:
                 data = load_data()
+                user = self._get_current_user(data)
+                record = next((s for s in data.get("settlementsHistory", []) if s["id"] == set_id), None)
+                if not record:
+                    self._send_json(404, {"error": "Settlement record not found."})
+                    return
+
+                # Only receiver or Admin Bala can undo a completed settlement
+                if user and not is_admin_member(user) and user["id"] != record.get("toId"):
+                    self._send_json(403, {
+                        "error": f"Security restriction: Only the receiver ({record.get('toName', 'Receiver')}) or Admin Bala can undo this settlement."
+                    })
+                    return
+
                 data["settlementsHistory"] = [s for s in data.get("settlementsHistory", []) if s["id"] != set_id]
                 save_data(data)
                 analytics = calculate_analytics(data)

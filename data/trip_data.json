@@ -1,42 +1,58 @@
 {
-  "tripName": "Kolkata Night Riders 🚖🌙",
-  "currency": "₹",
+  "tripName": "Kolkata Night Riders \ud83d\ude96\ud83c\udf19",
+  "currency": "\u20b9",
   "members": [
     {
       "id": "mem_1",
       "name": "Bala",
-      "color": "#046A38"
+      "color": "#046A38",
+      "role": "admin",
+      "upi": "",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     },
     {
       "id": "mem_37bb3ddf",
       "name": "Naisha",
       "color": "#10B981",
-      "upi": ""
+      "upi": "",
+      "role": "member",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     },
     {
       "id": "mem_099bc17a",
       "name": "sai praneeth",
       "color": "#F59E0B",
-      "upi": ""
+      "upi": "",
+      "role": "member",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     },
     {
       "id": "mem_5638c845",
       "name": "sai nath",
       "color": "#EC4899",
-      "upi": ""
+      "upi": "",
+      "role": "member",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     },
     {
       "id": "mem_f00b33ae",
       "name": "Hema",
       "color": "#8B5CF6",
-      "upi": ""
+      "upi": "",
+      "role": "member",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     },
     {
       "id": "mem_2fc6cf1e",
       "name": "sannihith",
       "color": "#06B6D4",
-      "upi": ""
+      "upi": "",
+      "role": "member",
+      "passwordHash": "17ce8b2584cb6e13968c0fe57c40b0e4$0a9d77dcea733ba2efa57268ab94cf340ccab8b5bbfdaf3bace7317500038d86"
     }
   ],
-  "expenses": []
+  "expenses": [],
+  "settlementsHistory": [],
+  "settlementClaims": [],
+  "sessions": {}
 }
