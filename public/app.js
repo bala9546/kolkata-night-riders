@@ -194,13 +194,21 @@ function openLoginModal(closable = true) {
 function populateLoginSelect() {
   const sel = document.getElementById("login-member-select");
   if (!sel) return;
-  const members = appState.members || [];
-  if (members.length === 0) return;
+  const defaultSquad = [
+    { id: "mem_1", name: "Bala", role: "admin" },
+    { id: "mem_37bb3ddf", name: "Naisha", role: "member" },
+    { id: "mem_099bc17a", name: "sai praneeth", role: "member" },
+    { id: "mem_5638c845", name: "sai nath", role: "member" },
+    { id: "mem_f00b33ae", name: "Hema", role: "member" },
+    { id: "mem_2fc6cf1e", name: "sannihith", role: "member" }
+  ];
+  const members = (appState.members && appState.members.length > 0) ? appState.members : defaultSquad;
+  const currentVal = sel.value || (currentUser ? currentUser.id : "mem_1");
 
   sel.innerHTML = members.map(m => {
     const isAdmin = m.role === "admin" || (m.name || "").toLowerCase() === "bala";
-    const isSelected = currentUser && currentUser.id === m.id ? "selected" : "";
-    return `<option value="${m.id}" ${isSelected}>${escapeHtml(m.name)} ${isAdmin ? "⚡ (Lead Architect / Admin)" : ""}</option>`;
+    const isSelected = (currentVal === m.id || (!currentVal && isAdmin)) ? "selected" : "";
+    return `<option value="${m.id}" data-name="${escapeHtml(m.name)}" ${isSelected}>${escapeHtml(m.name)} ${isAdmin ? "⚡ (Lead Architect / Admin)" : ""}</option>`;
   }).join("");
 }
 
@@ -1442,76 +1450,98 @@ function setupAuthModals() {
     });
   }
 
-  // Profile Dropdown Toggle
+  // Profile Button: If not logged in, opens Login modal. If logged in, toggles dropdown menu.
   const profileBtn = document.getElementById("btn-user-profile-menu");
   const dropdown = document.getElementById("user-dropdown-menu");
-  if (profileBtn && dropdown) {
+  if (profileBtn) {
     profileBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      dropdown.classList.toggle("open");
+      if (!currentUser) {
+        openLoginModal(true);
+      } else {
+        dropdown?.classList.toggle("open");
+      }
     });
     document.addEventListener("click", (e) => {
-      if (!dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+      if (dropdown && !dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
         dropdown.classList.remove("open");
       }
     });
   }
 
-  // Login Form
-  const formLogin = document.getElementById("form-auth-login");
-  if (formLogin) {
-    formLogin.addEventListener("submit", async (e) => {
+  // Robust Login Handler
+  async function performLogin(e) {
+    if (e) {
       e.preventDefault();
-      const memberId = document.getElementById("login-member-select").value;
-      const password = document.getElementById("login-password").value;
-      const submitBtn = document.getElementById("btn-submit-login");
+      e.stopPropagation();
+    }
+    const sel = document.getElementById("login-member-select");
+    const memberId = sel ? sel.value : "";
+    const selectedOpt = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+    const username = selectedOpt ? (selectedOpt.getAttribute("data-name") || selectedOpt.text.replace(/⚡.*$/, '').trim()) : "";
+    const passwordInput = document.getElementById("login-password");
+    const password = passwordInput ? passwordInput.value.trim() : "";
+    const submitBtn = document.getElementById("btn-submit-login");
 
-      if (!memberId || !password) {
-        showToast("Please enter your password", true);
-        return;
-      }
+    if (!password) {
+      showToast("Please enter your password (default: knr2026)", true);
+      passwordInput?.focus();
+      return;
+    }
 
-      if (submitBtn) submitBtn.disabled = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span>Signing in... ⏳</span>`;
+    }
 
-      try {
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId, password })
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem("knr_auth_token", authToken);
+      localStorage.setItem("knr_auth_user", JSON.stringify(currentUser));
+
+      document.getElementById("modal-auth-login").classList.remove("open");
+      document.getElementById("form-auth-login")?.reset();
+
+      updateNavUserPill();
+      renderAll();
+
+      if (typeof confetti === "function") {
+        confetti({
+          particleCount: 70,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#6366F1", "#10B981", "#F59E0B"]
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Login failed");
-
-        authToken = data.token;
-        currentUser = data.user;
-        localStorage.setItem("knr_auth_token", authToken);
-        localStorage.setItem("knr_auth_user", JSON.stringify(currentUser));
-
-        document.getElementById("modal-auth-login").classList.remove("open");
-        formLogin.reset();
-
-        updateNavUserPill();
-        renderAll();
-
-        if (typeof confetti === "function") {
-          confetti({
-            particleCount: 70,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#6366F1", "#10B981", "#F59E0B"]
-          });
-        }
-
-        showToast(`Welcome back, ${currentUser.name}! 🚖🌙`);
-      } catch (err) {
-        showToast(err.message, true);
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
       }
-    });
+
+      showToast(`Welcome back, ${currentUser.name}! 🚖🌙`);
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Log In & Enter Squad</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+      }
+    }
   }
 
-  // Close Login Modal (if allowed)
+  // Bind both form submit and button click
+  const formLogin = document.getElementById("form-auth-login");
+  if (formLogin) {
+    formLogin.addEventListener("submit", performLogin);
+  }
+  document.getElementById("btn-submit-login")?.addEventListener("click", performLogin);
+
+  // Close Login Modal
   document.getElementById("btn-close-login-modal")?.addEventListener("click", () => {
     document.getElementById("modal-auth-login").classList.remove("open");
   });
